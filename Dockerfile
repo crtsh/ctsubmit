@@ -5,7 +5,7 @@ ENV CGO_ENABLED=0 \
 RUN apk add --no-cache git tini-static
 WORKDIR /build
 COPY . .
-RUN go build -o ctsubmit -ldflags " \
+RUN go build -modfile=$gomodfile -o ctsubmit -ldflags " \
 -X github.com/crtsh/ctsubmit/config.BuildTimestamp=`date --utc +%Y-%m-%dT%H:%M:%SZ` \
 -X github.com/crtsh/ctsubmit/config.CtsubmitVersion=`git describe --tags --always`" /build/.
 
