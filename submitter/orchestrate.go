@@ -3,6 +3,7 @@ package submitter
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"time"
 
@@ -15,7 +16,13 @@ import (
 	"go.uber.org/zap"
 )
 
-func (sr *SubmissionRequest) submit(strategy []StrategyMember, sha256IssuerSPKI *[sha256.Size]byte, entryType ctgo.LogEntryType, entryData []byte) ([]ctgo.AddChainResponse, []*ctgo.SignedCertificateTimestamp, error) {
+var errQuorumMet = errors.New("quorum met")
+
+func (sr *SubmissionRequest) submit(ctx context.Context, strategy []StrategyMember, sha256IssuerSPKI *[sha256.Size]byte, entryType ctgo.LogEntryType, entryData []byte) ([]ctgo.AddChainResponse, []*ctgo.SignedCertificateTimestamp, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+
 	// Determine the API path for the submission.
 	apiPath := ""
 	switch entryType {
@@ -45,8 +52,8 @@ func (sr *SubmissionRequest) submit(strategy []StrategyMember, sha256IssuerSPKI 
 	}
 
 	start := time.Now()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	submissionCtx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
 
 	// On return, annotate any eligible logs that were never contacted.
 	defer func() {
@@ -75,7 +82,7 @@ func (sr *SubmissionRequest) submit(strategy []StrategyMember, sha256IssuerSPKI 
 		logger.Logger.Debug("Launching submission", zap.Int("launchSeq", launchSeq), zap.Int("strategyIdx", strategyIdx), zap.String("url", strategy[strategyIdx].SubmissionURL), zap.String("operator", strategy[strategyIdx].Operator), zap.Int("inFlight", inFlight))
 
 		go func(idx int) {
-			submitToLog(ctx, idx, strategy[idx].SubmissionURL, apiPath, requestBody, sha256IssuerSPKI, entryType, entryData, events)
+			submitToLog(submissionCtx, idx, strategy[idx].SubmissionURL, apiPath, requestBody, sha256IssuerSPKI, entryType, entryData, events)
 		}(strategyIdx)
 	}
 
@@ -164,7 +171,23 @@ func (sr *SubmissionRequest) submit(strategy []StrategyMember, sha256IssuerSPKI 
 
 	// Process events until quorum is met or all attempts are exhausted.
 	for inFlight > 0 {
-		event := <-events
+		var event submissionEvent
+		select {
+		case event = <-events:
+		case <-ctx.Done():
+			cancel(ctx.Err())
+			for inFlight > 0 {
+				ev := <-events
+				if ev.eventType == eventSuccess || ev.eventType == eventFailure {
+					inFlight--
+					strategy[ev.strategyIdx].TimeTaken = ev.timeTaken
+					if strategy[ev.strategyIdx].Outcome == "" {
+						strategy[ev.strategyIdx].Outcome = ev.outcome
+					}
+				}
+			}
+			return nil, nil, ctx.Err()
+		}
 
 		switch event.eventType {
 		case eventSuccess:
@@ -187,7 +210,7 @@ func (sr *SubmissionRequest) submit(strategy []StrategyMember, sha256IssuerSPKI 
 						strategy[idx].Outcome = "Submission cancelled (quorum met)"
 					}
 				}
-				cancel()
+				cancel(errQuorumMet)
 				// Drain events from cancelled goroutines to capture their timeTaken.
 				for inFlight > 0 {
 					ev := <-events

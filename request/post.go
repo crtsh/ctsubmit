@@ -54,58 +54,73 @@ func getResponseFormat(fhctx *fasthttp.RequestCtx) config.ResponseFormat {
 func POST(fhctx *fasthttp.RequestCtx, path string) int {
 	status := fasthttp.StatusBadRequest
 
-	ctxWithDeadline, cancel := context.WithDeadline(context.Background(), fhctx.Time().Add(time.Duration(config.Config.Server.RequestTimeout)))
+	ctx, cancel := context.WithDeadline(context.Background(), fhctx.Time().Add(time.Duration(config.Config.Server.RequestTimeout)))
 	defer cancel()
 
-	doneChan := make(chan int, 1)
-	go func() {
-		submissionRequest := submitter.NewSubmissionRequest()
-		var submissionResponse *submitter.SubmissionResponse
-		var err error
-		var responseFormat config.ResponseFormat
-		if apiEndpoint, ok := endpoint.CheckPOSTEndpoint(path); !ok {
-			status = fasthttp.StatusNotFound
-			logger.SetDetails(fhctx, zap.InfoLevel, "Invalid endpoint", nil, nil)
-		} else if responseFormat = getResponseFormat(fhctx); responseFormat == -1 {
-			err = fmt.Errorf("Unrecognised response format")
-		} else if requestBody := fhctx.Request.Body(); len(requestBody) == 0 {
-			err = fmt.Errorf("Empty request body")
-		} else if err = json.Unmarshal(requestBody, submissionRequest); err == nil {
-			submissionResponse, err = submitter.Handler(fhctx, ctxWithDeadline, apiEndpoint, submissionRequest)
-			if err == nil {
-				status = fasthttp.StatusOK
-			}
-		}
+	// Read all inputs from fhctx before any potentially long-running work.
+	apiEndpoint, ok := endpoint.CheckPOSTEndpoint(path)
+	if !ok {
+		logger.SetDetails(fhctx, zap.InfoLevel, "Invalid endpoint", nil, nil)
+		fhctx.SetStatusCode(fasthttp.StatusNotFound)
+		return fasthttp.StatusNotFound
+	}
 
-		if apiEndpoint, ok := endpoint.CheckPOSTEndpoint(path); ok {
-			result := "success"
-			if err != nil {
-				result = "error"
-			}
-			endpointRequestCounter.WithLabelValues(endpoint.APIEndpoint[apiEndpoint], result).Inc()
+	var err error
+	defer func() {
+		result := "success"
+		if err != nil {
+			result = "error"
 		}
-
+		endpointRequestCounter.WithLabelValues(endpoint.APIEndpoint[apiEndpoint], result).Inc()
 		logger.SetDetails(fhctx, zap.InfoLevel, "Submission Request", err, nil)
-
-		// Add Cross-Origin Resource Sharing (CORS) response header.
-		fhctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
-
-		// Send response.
-		switch responseFormat {
-		case config.RESPONSEFORMAT_HTML:
-			status = sendHTMLResponse(fhctx, submissionResponse, err)
-		case config.RESPONSEFORMAT_JSON:
-			if err == nil {
-				status = sendJSONResponse(fhctx, submissionResponse)
-			} else {
-				status = sendJSONProblem(fhctx, status, err)
-			}
+		if ctx.Err() == nil {
+			fhctx.SetStatusCode(status)
 		}
-		fhctx.SetStatusCode(status)
-		doneChan <- 0
 	}()
 
-	return health.CompleteRequest(ctxWithDeadline, doneChan)
+	responseFormat := getResponseFormat(fhctx)
+	if responseFormat == -1 {
+		err = fmt.Errorf("Unrecognised response format")
+		return status
+	}
+
+	requestBody := fhctx.Request.Body()
+	if len(requestBody) == 0 {
+		err = fmt.Errorf("Empty request body")
+		return status
+	}
+
+	submissionRequest := submitter.NewSubmissionRequest()
+	var submissionResponse *submitter.SubmissionResponse
+	if err = json.Unmarshal(requestBody, submissionRequest); err == nil {
+		submissionResponse, err = submitter.Handler(ctx, apiEndpoint, submissionRequest)
+		if err == nil {
+			status = fasthttp.StatusOK
+		}
+	}
+
+	// If the request deadline was exceeded, update health tracking and return early.
+	if ctx.Err() != nil {
+		deadline, _ := ctx.Deadline()
+		health.UpdateLatestTimestamps(nil, nil, &deadline)
+		return -1
+	}
+
+	// Add Cross-Origin Resource Sharing (CORS) response header.
+	fhctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
+
+	// Send response.
+	switch responseFormat {
+	case config.RESPONSEFORMAT_HTML:
+		status = sendHTMLResponse(fhctx, submissionResponse, err)
+	case config.RESPONSEFORMAT_JSON:
+		if err == nil {
+			status = sendJSONResponse(fhctx, submissionResponse)
+		} else {
+			status = sendJSONProblem(fhctx, status, err)
+		}
+	}
+	return status
 }
 
 func paramS(fhctx *fasthttp.RequestCtx, name string) string {

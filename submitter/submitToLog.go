@@ -93,7 +93,7 @@ func submitToLog(ctx context.Context, strategyIdx int, submissionURL string, api
 				if result.resp != nil {
 					result.resp.Body.Close()
 				}
-				events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: "Cancelled: quorum met", timeTaken: timeTaken}
+				events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: cancelledSubmissionOutcome(ctx), timeTaken: timeTaken}
 				monitor.RecordSubmissionOutcome(submissionURL, "cancelled")
 				return
 			}
@@ -101,7 +101,7 @@ func submitToLog(ctx context.Context, strategyIdx int, submissionURL string, api
 			return
 
 		case <-ctx.Done():
-			// Context cancelled (quorum achieved). Wait briefly for any in-flight HTTP response,
+			// Context cancelled. Wait briefly for any in-flight HTTP response,
 			// but don't block indefinitely.
 			select {
 			case result := <-httpCh:
@@ -110,10 +110,25 @@ func submitToLog(ctx context.Context, strategyIdx int, submissionURL string, api
 				}
 			case <-time.After(100 * time.Millisecond):
 			}
-			events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: "Cancelled: quorum met", timeTaken: time.Since(httpStart)}
+			events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: cancelledSubmissionOutcome(ctx), timeTaken: time.Since(httpStart)}
 			monitor.RecordSubmissionOutcome(submissionURL, "cancelled")
 			return
 		}
+	}
+}
+
+func cancelledSubmissionOutcome(ctx context.Context) string {
+	switch cause := context.Cause(ctx); {
+	case cause == errQuorumMet:
+		return "Cancelled: quorum met"
+	case cause == context.DeadlineExceeded:
+		return "Cancelled: request deadline exceeded"
+	case cause == context.Canceled:
+		return "Cancelled: request cancelled"
+	case cause != nil:
+		return fmt.Sprintf("Cancelled: %v", cause)
+	default:
+		return "Cancelled"
 	}
 }
 

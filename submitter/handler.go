@@ -15,10 +15,9 @@ import (
 	"github.com/google/certificate-transparency-go/asn1"
 	"github.com/google/certificate-transparency-go/tls"
 	"github.com/google/certificate-transparency-go/x509"
-	"github.com/valyala/fasthttp"
 )
 
-func Handler(fhctx *fasthttp.RequestCtx, ctx context.Context, apiEndpoint endpoint.Endpoint, submissionRequest *SubmissionRequest) (*SubmissionResponse, error) {
+func Handler(ctx context.Context, apiEndpoint endpoint.Endpoint, submissionRequest *SubmissionRequest) (*SubmissionResponse, error) {
 	// Check "chain" parameter is present and contains at least one certificate.
 	if len(submissionRequest.Chain) == 0 {
 		return nil, fmt.Errorf("Missing or empty 'chain' parameter")
@@ -98,7 +97,7 @@ func Handler(fhctx *fasthttp.RequestCtx, ctx context.Context, apiEndpoint endpoi
 	// Submit to the logs.
 	submissionResponse := &SubmissionResponse{}
 	var scts []*ctgo.SignedCertificateTimestamp
-	submissionResponse.LogResponse, scts, err = submissionRequest.submit(strategy, sha256IssuerSPKI, entryType, entryData)
+	submissionResponse.LogResponse, scts, err = submissionRequest.submit(ctx, strategy, sha256IssuerSPKI, entryType, entryData)
 	if err != nil {
 		return nil, fmt.Errorf("Submission failed: %v", err)
 	}
