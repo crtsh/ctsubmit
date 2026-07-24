@@ -52,6 +52,11 @@ func ValidateChain(logID [sha256.Size]byte, submittedChain [][]byte, logTemporal
 
 	if len(submittedChain) > 1 { // Don't use the cache when there's no chain.
 		// Check if ValidateChain has already been called for this chain of CA certificates / this log.
+		// The cache key covers only the non-leaf certs (submittedChain[1:]) because many distinct leaf
+		// certificates share the same issuer chain; caching the full chain would cause a miss on every
+		// unique leaf, defeating the purpose of the cache.
+		// The log's temporal interval is not included because the cache is already partitioned by logID
+		// and each log has a fixed temporal interval.
 		chainSHA256 = sha256.Sum256(bytes.Join(submittedChain[1:], nil))
 		chainIsValid, ok = cachedValidateChainResult(logID, chainSHA256)
 	}
