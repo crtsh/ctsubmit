@@ -9,7 +9,7 @@ require (
 	github.com/crtsh/ctloglists v1.20260723.113001
 	github.com/goccy/go-json v0.10.6
 	github.com/google/certificate-transparency-go v1.3.3
-	github.com/prometheus/client_golang v1.24.0
+	github.com/prometheus/client_golang v1.24.1
 	github.com/spf13/viper v1.21.0
 	github.com/valyala/fasthttp v1.72.0
 	go.uber.org/automaxprocs v1.6.0
