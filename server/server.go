@@ -90,11 +90,21 @@ func monitoringHandler(fhctx *fasthttp.RequestCtx) {
 	case endpoint.ENDPOINTSTRING_METRICS:
 		status = metrics(fhctx)
 	case endpoint.ENDPOINTSTRING_BUILD:
-		buildInfo(fhctx)
+		if config.Config.Server.EnableDebugEndpoints {
+			buildInfo(fhctx)
+		} else {
+			fhctx.NotFound()
+		}
 	case endpoint.ENDPOINTSTRING_CONFIG:
-		configInfo(fhctx)
+		if config.Config.Server.EnableDebugEndpoints {
+			configInfo(fhctx)
+		} else {
+			fhctx.NotFound()
+		}
 	default:
-		if !profilingHandler(fhctx) {
+		if config.Config.Server.EnableDebugEndpoints && profilingHandler(fhctx) {
+			// Handled by pprof.
+		} else {
 			fhctx.NotFound()
 		}
 	}
@@ -148,9 +158,10 @@ func Run() {
 		NoDefaultServerHeader: true,
 	}
 	if config.Config.Server.MonitoringPort != 0 {
-		logger.Logger.Info("Starting MonitoringServer", zap.Int("port", config.Config.Server.MonitoringPort))
+		listenAddr := fmt.Sprintf("%s:%d", config.Config.Server.MonitoringAddress, config.Config.Server.MonitoringPort)
+		logger.Logger.Info("Starting MonitoringServer", zap.String("address", listenAddr))
 		go func() {
-			if err := monitoringServer.ListenAndServe(fmt.Sprintf(":%d", config.Config.Server.MonitoringPort)); err != nil {
+			if err := monitoringServer.ListenAndServe(listenAddr); err != nil {
 				logger.Logger.Fatal("monitoringServer.ListenAndServe failed", zap.Error(err))
 			}
 		}()

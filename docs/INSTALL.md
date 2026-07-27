@@ -53,6 +53,8 @@ ctsubmit runs two HTTP servers:
 | Web | 8080 | REST API and web interface |
 | Monitoring | 8081 | Health probes, Prometheus metrics, and debug endpoints |
 
+The monitoring server binds to all interfaces by default. For hardened deployments, set `server.monitoringAddress` to `"127.0.0.1"` to restrict access to localhost only.
+
 Both servers can alternatively listen on Unix sockets (see `server.webserverPath` and `server.monitoringPath` below).
 
 ## Configuration
@@ -87,6 +89,8 @@ docker run -p 9090:9090 -e CTSUBMIT_SERVER_WEBSERVERPORT=9090 -it ctsubmit
 server:
   webserverPort: 8080           # Web API server port.
   monitoringPort: 8081          # Monitoring server port.
+  monitoringAddress: ""         # Bind address for monitoring server ("127.0.0.1" for localhost only).
+  enableDebugEndpoints: false   # Enable /debug/config and /debug/pprof/* endpoints.
   requestTimeout: 30s           # Maximum time to process a submission request.
 
 strategy:
@@ -137,7 +141,9 @@ logging:
 | `server.webserverPort` | `8080` | Port for the web API server. |
 | `server.webserverPath` | _(empty)_ | Unix socket path for the web server (overrides port). |
 | `server.monitoringPort` | `8081` | Port for the monitoring server. |
+| `server.monitoringAddress` | _(empty)_ | Bind address for the monitoring server. Empty or `"0.0.0.0"` listens on all interfaces. Set to `"127.0.0.1"` to restrict to localhost. |
 | `server.monitoringPath` | _(empty)_ | Unix socket path for the monitoring server (overrides port). |
+| `server.enableDebugEndpoints` | `false` | Enable `/debug/config` and `/debug/pprof/*` endpoints on the monitoring server. |
 | `server.socketPermissions` | `0600` | Unix socket file permissions. |
 | `server.readTimeout` | `30s` | HTTP read timeout. |
 | `server.idleTimeout` | `30s` | HTTP idle connection timeout. |
@@ -200,16 +206,18 @@ logging:
 
 ## Monitoring Endpoints
 
-The monitoring server (default port 8081) exposes these endpoints:
+The monitoring server (default port `8081`, all interfaces) exposes these endpoints:
 
 | Endpoint | Description |
 |---|---|
 | `/livez` | Liveness probe. Returns HTTP 200 if the application has successfully processed at least one submission. |
 | `/readyz` | Readiness probe. Returns HTTP 200 if the application is not in a "busy" (timed out) state. |
 | `/metrics` | Prometheus metrics endpoint. |
-| `/debug/build` | Go build information (module, dependencies, VCS details). |
-| `/debug/config` | Current runtime configuration as formatted JSON. |
-| `/debug/pprof/*` | Go pprof profiling endpoints. |
+| `/debug/build` | Go build information (module, dependencies, VCS details). Requires `server.enableDebugEndpoints: true`. |
+| `/debug/config` | Current runtime configuration as formatted JSON. Requires `server.enableDebugEndpoints: true`. |
+| `/debug/pprof/*` | Go pprof profiling endpoints. Requires `server.enableDebugEndpoints: true`. |
+
+> **Security note:** The `/debug/*` endpoints are disabled by default. They can expose dependency versions, runtime configuration, and process internals. Enable them only in trusted environments. For production deployments where the monitoring port may be reachable from untrusted networks, keep `server.enableDebugEndpoints` set to `false` and consider setting `server.monitoringAddress` to `"127.0.0.1"`.
 
 ## Kubernetes Deployment
 
