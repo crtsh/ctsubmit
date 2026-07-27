@@ -137,6 +137,8 @@ If the request times out (exceeds `server.requestTimeout`), a `503 Service Unava
 
 ## Security Considerations
 
+### Optional Response Fields
+
 By default (`response.includeLogResponses` configuration option enabled), ctsubmit returns only the individual log responses (`logResponse`). Since there have been a number of [CA incidents](https://github.com/crtsh/ctlint#why-you-need-ctlint) in the past due to mistakes made when processing log responses, ctsubmit provides two further configuration options to assist CAs:
 
 - The `response.includeSCTList` configuration option (default: `false`) enables the `sctListB64` response field.
@@ -153,6 +155,10 @@ For ctsubmit to remain outside a CA's trusted computing base, even if the CA is 
 - (`add-pre-chain` only) The CA needs to independently construct the marshaled SCT list/extension and final TBSCertificate.
 
 As long as the SCTs are kept in the same order as in `logResponse` and the SCT list extension is the last extension in the final TBSCertificate constructed by the CA, the CA can check its independent constructions by comparing against `sctListB64` and `finalTBSCertB64` and requiring a byte-for-byte match.
+
+### CORS Policy
+
+Responses include the header `Access-Control-Allow-Origin: *`. This is an intentional design choice: ctsubmit is a public Certificate Transparency submission proxy, and permissive CORS allows browser-based tools and web applications to submit certificates directly without requiring a server-side relay.
 
 ## Policy-Compliant Submissions
 

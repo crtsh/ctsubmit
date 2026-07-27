@@ -106,7 +106,8 @@ func POST(fhctx *fasthttp.RequestCtx, path string) int {
 		return -1
 	}
 
-	// Add Cross-Origin Resource Sharing (CORS) response header.
+	// Add permissive Cross-Origin Resource Sharing (CORS) response header.  This is intentional: as a public CT submission proxy, we allow
+	// browser-based tools and web applications to submit certificates directly without requiring a server-side relay.
 	fhctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
 
 	// Send response.
