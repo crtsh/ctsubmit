@@ -3,6 +3,7 @@ package health
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/crtsh/ctsubmit/config"
@@ -17,7 +18,15 @@ var (
 	latestErrorTimestamp    time.Time
 	latestBusyTimestamp     time.Time
 	timestampMutex          sync.RWMutex
+
+	initialDataReady atomic.Bool
 )
+
+// SetInitialDataReady marks that all initial external data has been loaded.
+// Until this is called, IsReady will report the service as not ready.
+func SetInitialDataReady() {
+	initialDataReady.Store(true)
+}
 
 func UpdateLatestTimestamps(nonErrorTimestamp *time.Time, errorTimestamp *time.Time, busyTimestamp *time.Time) {
 	timestampMutex.Lock()
@@ -58,6 +67,13 @@ func IsAlive(ctx *fasthttp.RequestCtx) bool {
 }
 
 func IsReady(ctx *fasthttp.RequestCtx) bool {
+	if !initialDataReady.Load() {
+		ctx.SetUserValue("zap_fields", []zap.Field{
+			zap.Bool("initial_data_ready", false),
+		})
+		return false
+	}
+
 	timestampMutex.RLock()
 	busyTimestamp := latestBusyTimestamp
 	timestampMutex.RUnlock()

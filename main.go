@@ -7,6 +7,7 @@ import (
 
 	_ "go.uber.org/automaxprocs"
 
+	"github.com/crtsh/ctsubmit/health"
 	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/monitor"
 	"github.com/crtsh/ctsubmit/server"
@@ -19,16 +20,23 @@ func main() {
 	defer logger.Logger.Info("Shutting down")
 	defer logger.ShutdownWG.Wait()
 
-	// Start the various goroutines.
-	logger.ShutdownWG.Add(2)
-	monitor.FetchEndpointUptimes() // Initial fetch before starting the periodic fetcher.
-	go monitor.UptimeFetcher(ctx)
-	monitor.FetchAllSTHs() // Initial fetch before starting the periodic fetcher.
-	go monitor.STHMonitor(ctx)
-
-	// Start the HTTP servers (Web and Monitoring).
+	// Start the HTTP servers (Web and Monitoring) immediately.
+	// Readiness probes will report "not ready" until initial data is loaded.
 	server.Run()
 	defer server.Shutdown()
+
+	// Start the various goroutines.
+	logger.ShutdownWG.Add(2)
+	go monitor.UptimeFetcher(ctx)
+	go monitor.STHMonitor(ctx)
+
+	// Perform initial data fetches asynchronously, then mark the service as ready.
+	go func() {
+		monitor.FetchEndpointUptimes()
+		monitor.FetchAllSTHs()
+		health.SetInitialDataReady()
+		logger.Logger.Info("Initial external data loaded; service is now ready")
+	}()
 
 	// Wait to be interrupted.
 	<-ctx.Done()
