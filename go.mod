@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	filippo.io/sunlight v0.8.1
-	github.com/crtsh/ccadb_data v1.20260723.115337
+	github.com/crtsh/ccadb_data v1.20260725.205723
 	github.com/crtsh/ctlint v0.0.0-20260723131837-7d6fb7d43e80
 	github.com/crtsh/ctloglists v1.20260723.113001
 	github.com/goccy/go-json v0.10.6
@@ -47,7 +47,7 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
