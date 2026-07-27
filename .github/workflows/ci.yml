@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests
+        run: go test ./...
+
+  test-race:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run tests with race detector
+        run: go test -race ./...
+
+  docker-build-and-smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Build Docker image
+        run: docker build -t ctsubmit:ci .
+
+      - name: Smoke test container
+        run: |
+          # Start the container in the background.
+          docker run -d --name ctsubmit-smoke -p 8081:8081 ctsubmit:ci
+
+          # Wait for the container to start accepting connections.
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8081/livez > /dev/null 2>&1; then
+              echo "Container is alive"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "Container failed to respond to /livez within 30s"
+              docker logs ctsubmit-smoke
+              exit 1
+            fi
+            sleep 1
+          done
+
+          # Verify the liveness response.
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8081/livez)
+          echo "livez returned HTTP $STATUS"
+          if [ "$STATUS" -ne 200 ]; then
+            echo "Expected 200, got $STATUS"
+            docker logs ctsubmit-smoke
+            exit 1
+          fi
+
+          docker stop ctsubmit-smoke
