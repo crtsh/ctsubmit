@@ -25,9 +25,6 @@ jobs:
           git config --global user.email "gh@ctsubm.it"
           git config --global user.name "ctsubmit"
 
-    - name: Fetch all branches
-      run: git fetch origin
-
     - name: Run dev_update_dependencies.sh
       run: chmod +x dev_update_dependencies.sh; ./dev_update_dependencies.sh
 
@@ -43,18 +40,13 @@ jobs:
           echo "dev_files_changed=false" >> $GITHUB_OUTPUT
         fi
 
-    - name: Create auto-dev-update branch
-      if: steps.check_changes.outputs.dev_files_changed == 'true'
-      run: |
-          git checkout -b auto-dev-update
-          git push origin -u auto-dev-update
-
     - name: Create Pull Request
       if: steps.check_changes.outputs.dev_files_changed == 'true'
       uses: peter-evans/create-pull-request@v8
       with:
         add-paths: |
           dev_go.*
+          pki/data/optimal_parents.csv
         token: ${{ secrets.GITHUB_TOKEN }}
         base: main
         branch: auto-dev-update
@@ -62,12 +54,10 @@ jobs:
         body: "This pull request was automatically created due to a dependency update."
         commit-message: Dependency update
 
-    - name: Authenticate GitHub CLI
-      if: steps.check_changes.outputs.dev_files_changed == 'true'
-      run: gh auth login --with-token <<< "${{ secrets.GITHUB_TOKEN }}"
-        
     - name: Auto-Merge PR
       if: steps.check_changes.outputs.dev_files_changed == 'true'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
           gh pr merge -d -m
 
