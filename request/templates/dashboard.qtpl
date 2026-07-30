@@ -33,23 +33,23 @@ type DashboardLog struct {
             <TH rowspan="2">Operator</TH>
             <TH colspan="3" style="border-left:2px solid #CCCCCC">{%s logListName %}</TH>
             <TH colspan="2" style="border-left:2px solid #CCCCCC">STH</TH>
-			<TH colspan="2" style="border-left:2px solid #CCCCCC">Uptime</TH>
-			<TH colspan="3" style="border-left:2px solid #CCCCCC">Submissions (Last 30s)</TH>
-			<TH colspan="2" style="border-left:2px solid #CCCCCC">Dispreferring</TH>
+            <TH colspan="2" style="border-left:2px solid #CCCCCC">Uptime</TH>
+            <TH colspan="3" style="border-left:2px solid #CCCCCC">Submissions (Last 30s)</TH>
+            <TH colspan="2" style="border-left:2px solid #CCCCCC">Dispreferring</TH>
           </TR>
           <TR style="border-bottom:1px solid #CCCCCC">
             <TH style="border-left:2px solid #CCCCCC">Name [URL]</TH>
-			<TH>Type/API</TH>
+            <TH>Type/API</TH>
             <TH>Tree Size</TH>
             <TH style="border-left:2px solid #CCCCCC">MMD</TH>
             <TH>Age</TH>
             <TH style="border-left:2px solid #CCCCCC">24h %</TH>
             <TH>90d %</TH>
-			<TH style="border-left:2px solid #CCCCCC">OK</TH>
-			<TH>Fail</TH>
-			<TH>Avg.Latency</TH>
-			<TH style="border-left:2px solid #CCCCCC">T-minus</TH>
-			<TH>Reason</TH>
+            <TH style="border-left:2px solid #CCCCCC">OK</TH>
+            <TH>Fail</TH>
+            <TH>Avg.Latency</TH>
+            <TH style="border-left:2px solid #CCCCCC">T-minus</TH>
+            <TH>Reason</TH>
           </TR>
 {% for _, log := range logs %}
 {%= LogDetailRow(log) %}
