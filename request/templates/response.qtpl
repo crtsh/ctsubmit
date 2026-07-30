@@ -1,0 +1,104 @@
+{% import "encoding/base64" %}
+{% import "fmt" %}
+{% import "time" %}
+
+{% import "filippo.io/sunlight" %}
+
+{% import "github.com/crtsh/ctsubmit/loglists" %}
+{% import "github.com/crtsh/ctsubmit/submitter" %}
+
+{% import "github.com/google/certificate-transparency-go/tls" %}
+
+{% func HTMLError(errMsg string) %}
+<TABLE style="border:1px solid #CCCCCC;font:8pt 'Roboto Mono',monospace">
+<TR><TH>Error</TH></TR>
+<TR><TD style="color:red">{%s errMsg %}</TD></TR>
+</TABLE>
+{% endfunc %}
+
+{% func HTMLResponse(resp *submitter.SubmissionResponse) %}
+<TABLE style="border:1px solid #CCCCCC;font:8pt 'Roboto Mono',monospace">
+{% if len(resp.LogResponse) > 0 %}
+<TR><TH colspan="2" style="border-bottom:1px solid #CCCCCC;border-top:2px solid #CCCCCC">SCTs ({%d len(resp.LogResponse) %})</TH></TR>
+{% for i, sct := range resp.LogResponse %}
+{% if i > 0 %}
+<TR><TD colspan="2" style="border-top:1px solid #EEEEEE"></TD></TR>
+{% endif %}
+<TR><TD>Version</TD><TD>{%d int(sct.SCTVersion) %} &nbsp;<I>({%s sct.SCTVersion.String() %})</I></TD></TR>
+<TR><TD>Log ID</TD><TD>{%s base64.StdEncoding.EncodeToString(sct.ID) %}{% code operatorName, logName := loglists.GetLogName(sct.ID) %}{% if logName != "" %} &nbsp;<I>({% if operatorName != "" %}{%s operatorName %} {% endif %}{%s logName %})</I>{% endif %}</TD></TR>
+<TR><TD>Timestamp</TD><TD>{%d int(sct.Timestamp) %} &nbsp;<I>({%s time.UnixMilli(int64(sct.Timestamp)).UTC().Format(time.RFC3339) %})</I></TD></TR>
+{% if sct.Extensions != "" %}
+{% code
+	leafIndexStr := ""
+	extBytes, extErr := base64.StdEncoding.DecodeString(sct.Extensions)
+	if extErr == nil {
+		if ext, extErr2 := sunlight.ParseExtensions(extBytes); extErr2 == nil {
+			leafIndexStr = fmt.Sprintf(" &nbsp;<I>(Leaf Index: %d)</I>", ext.LeafIndex)
+		}
+	}
+%}
+<TR><TD>Extensions</TD><TD style="word-break:break-all">{%s sct.Extensions %}{%s= leafIndexStr %}</TD></TR>
+{% endif %}
+<TR><TD>Signature</TD><TD style="word-break:break-all">{% code
+	sigB64 := base64.StdEncoding.EncodeToString(sct.Signature)
+	mid := len(sigB64) / 2
+	sigSuffix := ""
+	var ds tls.DigitallySigned
+	if rest, dsErr := tls.Unmarshal(sct.Signature, &ds); dsErr == nil && len(rest) == 0 {
+		sigSuffix = fmt.Sprintf(` &nbsp;<I>(%s / %s)</I>`, ds.Algorithm.Hash, ds.Algorithm.Signature)
+	}
+%}{%s sigB64[:mid] %}<BR>{%s sigB64[mid:] %}{%s= sigSuffix %}</TD></TR>
+{% endfor %}
+{% endif %}
+
+{% if resp.SCTListB64 != "" %}
+<TR><TH colspan="2" style="border-bottom:1px solid #CCCCCC;border-top:2px solid #CCCCCC">SCT List Extension</TH></TR>
+<TR><TD colspan="2" style="word-break:break-all">{%= base64Block(resp.SCTListB64) %}</TD></TR>
+{% endif %}
+
+{% if resp.FinalTBSCertB64 != "" %}
+<TR><TH colspan="2" style="border-bottom:1px solid #CCCCCC;border-top:2px solid #CCCCCC">Final TBS Certificate</TH></TR>
+<TR><TD colspan="2" style="word-break:break-all">{%= base64Block(resp.FinalTBSCertB64) %}</TD></TR>
+{% endif %}
+
+{% if len(resp.CTLint) > 0 %}
+<TR><TH colspan="2" style="border-bottom:1px solid #CCCCCC;border-top:2px solid #CCCCCC">CT Lint</TH></TR>
+{% for _, finding := range resp.CTLint %}
+{% code
+	color := ""
+	switch finding.Severity {
+	case "ERROR", "FATAL":
+		color = `style="color:red"`
+	case "WARNING":
+		color = `style="color:orange"`
+	}
+%}
+<TR><TD {%s= color %}>{%s finding.Severity %}</TD><TD>{%s finding.Finding %}</TD></TR>
+{% endfor %}
+{% endif %}
+
+{% if len(resp.Strategy) > 0 %}
+<TR><TH colspan="2" style="border-bottom:1px solid #CCCCCC;border-top:2px solid #CCCCCC">Strategy</TH></TR>
+<TR style="font-weight:bold"><TD>Log</TD><TD>Bucket &rarr; Outcome (Latency)</TD></TR>
+{% for _, sm := range resp.Strategy %}
+<TR><TD>{%s sm.Operator %} {% if sm.LogName != "" %}{%s sm.LogName %}{% else %}{%s sm.SubmissionURL %}{% endif %}</TD><TD>{% code bucketJSON, _ := sm.Bucket.MarshalJSON() %}{%s string(bucketJSON) %}{% if sm.Outcome != "" %} &rarr; {%s sm.Outcome %}{% endif %}{% if sm.TimeTaken > 0 %} ({%s fmt.Sprintf("%.3fs", sm.TimeTaken.Seconds()) %}){% endif %}</TD></TR>
+{% endfor %}
+{% endif %}
+</TABLE>
+{% endfunc %}
+
+{% func base64Block(s string) %}
+{% code b64 := formatBase64Block(s) %}{%s= b64 %}
+{% endfunc %}
+
+{% code
+func formatBase64Block(s string) string {
+	var result string
+	for len(s) > 64 {
+		result += s[:64] + "<BR>"
+		s = s[64:]
+	}
+	result += s
+	return result
+}
+%}

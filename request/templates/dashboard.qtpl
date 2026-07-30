@@ -1,0 +1,153 @@
+{% import "fmt" %}
+{% import "net/url" %}
+{% import "time" %}
+
+{% import "github.com/crtsh/ctsubmit/config" %}
+{% import "github.com/crtsh/ctsubmit/monitor" %}
+
+{% code
+type DashboardLog struct {
+	OperatorName  string
+	LogDescription string
+	MonitoringURL string
+	SubmissionURL string
+	LogType       string
+	MMD           int32
+}
+%}
+
+{% func DashboardPage(logListName string, logs []DashboardLog) %}
+{%= Head("CT Submission Proxy") %}
+  <STYLE type="text/css">
+    table tr:nth-child(2n+4) {
+      background: #E7E7E7
+    }
+  </STYLE>
+</HEAD>
+<BODY>
+{%= Header() %}
+    <TR>
+      <TD>
+        <TABLE style="border: 1px solid #CCCCCC; font: 10pt 'Roboto Mono', monospace">
+          <TR style="font-size:12pt">
+            <TH rowspan="2">Operator</TH>
+            <TH colspan="3" style="border-left:2px solid #CCCCCC">{%s logListName %}</TH>
+            <TH colspan="2" style="border-left:2px solid #CCCCCC">STH</TH>
+			<TH colspan="2" style="border-left:2px solid #CCCCCC">Uptime</TH>
+			<TH colspan="3" style="border-left:2px solid #CCCCCC">Submissions (Last 30s)</TH>
+			<TH colspan="2" style="border-left:2px solid #CCCCCC">Dispreferring</TH>
+          </TR>
+          <TR style="border-bottom:1px solid #CCCCCC">
+            <TH style="border-left:2px solid #CCCCCC">Name [URL]</TH>
+			<TH>Type/API</TH>
+            <TH>Tree Size</TH>
+            <TH style="border-left:2px solid #CCCCCC">MMD</TH>
+            <TH>Age</TH>
+            <TH style="border-left:2px solid #CCCCCC">24h %</TH>
+            <TH>90d %</TH>
+			<TH style="border-left:2px solid #CCCCCC">OK</TH>
+			<TH>Fail</TH>
+			<TH>Avg.Latency</TH>
+			<TH style="border-left:2px solid #CCCCCC">T-minus</TH>
+			<TH>Reason</TH>
+          </TR>
+{% for _, log := range logs %}
+{%= LogDetailRow(log) %}
+{% endfor %}
+        </TABLE>
+      </TD>
+      <TD style="vertical-align:middle;padding-left:50px">{%= Dashboards() %}
+      </TD>
+    </TR>
+    <TR>
+      <TD style="padding-top:25px;text-align:middle;vertical-align:bottom">{%= Copyright() %}</TD><TD style="padding-left:50px">{%= BuiltAt() %}</TD>
+    </TR>
+  </TABLE>
+</BODY>
+</HTML>
+{% endfunc %}
+
+{% func LogDetailRow(log DashboardLog) %}
+{% code
+	sthAgeString := "?"
+	treeSizeString := "?"
+	monURL, _ := url.JoinPath(log.MonitoringURL, "/")
+	sd, ok := monitor.GetSTHData(monURL)
+	if ok {
+		if sd.Timestamp != nil {
+			sthAgeString = AgeString(int32(time.Since(*sd.Timestamp)/time.Second), log.MMD)
+		}
+		if sd.LastFetched != nil {
+			treeSizeString = fmt.Sprintf("%d", sd.TreeSize)
+		}
+	}
+
+	subURL, _ := url.JoinPath(log.SubmissionURL, "/")
+	var percentage24h, percentage90d string
+	up24h, ok24 := monitor.GetEndpointUptime24h(subURL, "LOWEST")
+	if ok24 {
+		percentage24h = PercentageString(up24h, config.Config.Strategy.UptimeThreshold.SubmitEndpoint24h, 0)
+	}
+	up90d, ok90 := monitor.GetEndpointUptime90d(subURL, "LOWEST")
+	if ok90 {
+		percentage90d = PercentageString(up90d, config.Config.Strategy.UptimeThreshold.LowestEndpoint90d, 99)
+	}
+
+	backoff, _ := monitor.GetBadResponseBackoff(subURL)
+	reason := "Bad Response"
+	statusCode := 0
+	if backoff <= 0 {
+		backoff, _ = monitor.GetTimeoutBackoff(subURL)
+		reason = "Timeout"
+	}
+	if backoff <= 0 {
+		backoff, _, statusCode = monitor.Get5xxBackoff(subURL)
+		reason = fmt.Sprintf("HTTP %d", statusCode)
+	}
+	if backoff <= 0 {
+		backoff, _, statusCode = monitor.Get4xxBackoff(subURL)
+		reason = fmt.Sprintf("HTTP %d", statusCode)
+	}
+	if backoff <= 0 {
+		backoff, _ = monitor.GetSlowResponseBackoff(subURL)
+		reason = "Slow Response"
+	}
+	backoffAgeString := AgeString(int32(backoff/time.Second), int32(backoff/time.Second))
+	if backoff <= 0 {
+		backoffAgeString = ""
+		reason = ""
+	}
+
+	successes, failures := monitor.GetRecentOutcomeCounts(subURL)
+	successString := ""
+	failureString := ""
+	if successes > 0 || failures > 0 {
+		successString = fmt.Sprintf("%d", successes)
+		if failures > 0 {
+			failureString = fmt.Sprintf(`<span style="color:red">%d</span>`, failures)
+		} else {
+			failureString = "0"
+		}
+	}
+
+	responseTimeString := ""
+	if rt, ok := monitor.GetAvgResponseTime(subURL); ok {
+		responseTimeString = fmt.Sprintf("%.3fs", rt.Seconds())
+	}
+%}
+          <TR>
+            <TD>{%s log.OperatorName %}</TD>
+            <TD style="border-left:2px solid #CCCCCC"><A title="{%s log.MonitoringURL %}">{%s log.LogDescription %}</A></TD>
+            <TD>{%s log.LogType %}</TD>
+            <TD>{%s treeSizeString %}</TD>
+            <TD style="border-left:2px solid #CCCCCC">{%s= AgeString(log.MMD, log.MMD) %}</TD>
+            <TD>{%s= sthAgeString %}</TD>
+            <TD style="border-left:2px solid #CCCCCC">{%s= percentage24h %}</TD>
+            <TD>{%s= percentage90d %}</TD>
+            <TD style="border-left:2px solid #CCCCCC">{%s= successString %}</TD>
+            <TD>{%s= failureString %}</TD>
+            <TD>{%s= responseTimeString %}</TD>
+            <TD style="border-left:2px solid #CCCCCC">{%s= backoffAgeString %}</TD>
+            <TD>{%s= reason %}</TD>
+          </TR>
+{% endfunc %}

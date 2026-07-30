@@ -1,4 +1,7 @@
-all: clean ctsubmit
+all: clean generate ctsubmit
+
+generate:
+	go run github.com/valyala/quicktemplate/qtc@latest -dir=request/templates
 
 ctsubmit:
 	CGO_ENABLED=0 go build -o $@ -ldflags " \
@@ -6,4 +9,4 @@ ctsubmit:
 	-X github.com/crtsh/ctsubmit/config.CtsubmitVersion=`git describe --tags --always`"
 
 clean:
-	rm -f ctsubmit
+	rm -f ctsubmit request/templates/*.qtpl.go

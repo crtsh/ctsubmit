@@ -1,0 +1,77 @@
+{% import "fmt" %}
+{% import "time" %}
+
+{% import "github.com/crtsh/ctsubmit/config" %}
+{% import "github.com/crtsh/ctsubmit/endpoint" %}
+{% import "github.com/crtsh/ctsubmit/utils" %}
+
+{% func Head(title string) %}
+<!DOCTYPE HTML>
+<HTML>
+<HEAD>
+  <META http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <TITLE>{%s config.ApplicationName %} | {%s title %}</TITLE>
+  <LINK href="https://fonts.googleapis.com/css2?family=Urbanist:wght@500;700&family=DM+Sans:wght@400;500&family=Roboto+Mono&family=Roboto:wght@400;500" rel="stylesheet">
+  <LINK href="/{%s endpoint.ENDPOINTSTRING_CSS %}" rel="stylesheet">
+{% endfunc %}
+
+{% func Header() %}
+  <TABLE>
+    <TR>
+      <TD style="text-align:center;vertical-align:middle"><A href="https://{%s utils.GetPackagePath() %}/releases" target="_blank"><DIV class="title">{%s config.ApplicationName %} {%s utils.VersionString(config.CtsubmitVersion) %}</DIV></A></TD>
+      <TD style="padding-left:50px"><A href="https://{%s utils.GetPackagePath() %}" target="_blank"><IMG src="/{%s endpoint.ENDPOINTSTRING_MASCOT %}" width="100" height="100"></A></TD>
+    </TR>
+{% endfunc %}
+
+{% func Dashboards() %}
+        <B>Dashboards:</B>
+        <BR><BR><A href="/{%s endpoint.ENDPOINTSTRING_DASHBOARD %}?loglist=usabletls">Usable TLS Logs</A>
+        <BR><BR><A href="/{%s endpoint.ENDPOINTSTRING_DASHBOARD %}?loglist=activetls">Active TLS Logs</A>
+        <BR><BR><A href="/{%s endpoint.ENDPOINTSTRING_DASHBOARD %}?loglist=testtls">Test TLS Logs</A>
+        <BR><BR><A href="/{%s endpoint.ENDPOINTSTRING_DASHBOARD %}?loglist=usablebimi">Usable BIMI Logs</A>
+{% endfunc %}
+
+{% func Copyright() %}
+{% code
+	copyrightFromYear := 2026
+	copyrightToYear := time.Now().Year()
+%}
+<P class="copyright">&copy; <A href="https://sectigo.com" target="_blank">Sectigo</A> Limited {%d copyrightFromYear %}{% if copyrightToYear > copyrightFromYear %}-{%d copyrightToYear %}{% endif %}. All rights reserved.</P>
+{% endfunc %}
+
+{% func BuiltAt() %}
+<BR><B>Built at:</B><DIV style="font-size:8pt;font-style:normal">{%s config.BuildTimestamp %}</DIV>
+{% endfunc %}
+
+{% code
+func AgeString(nSeconds, errorThreshold int32) string {
+	if nSeconds < 0 {
+		return ""
+	}
+
+	var s string
+	if nSeconds >= 3600 {
+		s = fmt.Sprintf("%dh", nSeconds/3600)
+	}
+	if (nSeconds%3600)/60 > 0 {
+		s = fmt.Sprintf("%s%dm", s, (nSeconds%3600)/60)
+	}
+	if nSeconds%60 > 0 || s == "" {
+		s = fmt.Sprintf("%s%ds", s, nSeconds%60)
+	}
+	if nSeconds > errorThreshold {
+		s = fmt.Sprintf(`<span style="color:red">%s</span>`, s)
+	}
+	return s
+}
+
+func PercentageString(value, warningThreshold, errorThreshold float64) string {
+	s := fmt.Sprintf("%.4f", value)
+	if value < errorThreshold {
+		s = fmt.Sprintf(`<span style="color:red">%s</span>`, s)
+	} else if value < warningThreshold {
+		s = fmt.Sprintf(`<span style="color:orange">%s</span>`, s)
+	}
+	return s
+}
+%}

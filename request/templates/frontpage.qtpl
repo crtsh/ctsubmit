@@ -1,0 +1,31 @@
+{% import "github.com/crtsh/ctsubmit/endpoint" %}
+{% import "github.com/crtsh/ctsubmit/utils" %}
+
+{% func FrontPage() %}
+{%= Head("CT Submission Proxy") %}
+</HEAD>
+<BODY>
+{%= Header() %}
+    <TR>
+      <TD>
+        <BR><A href="https://{%s utils.GetPackagePath() %}/blob/main/docs/REST_API.md" target="_blank">REST API Documentation [GitHub]</A>
+        <BR><BR><BR><B>Example webpages that use the submission REST APIs:</B>
+        <UL>
+          <LI><A href="/{%s endpoint.ENDPOINTSTRING_ADDCHAIN %}">{%s endpoint.ENDPOINTSTRING_ADDCHAIN %}</A> - Submit a Certificate</LI>
+          <LI><A href="/{%s endpoint.ENDPOINTSTRING_ADDPRECHAIN %}">{%s endpoint.ENDPOINTSTRING_ADDPRECHAIN %}</A> - Submit a Precertificate</LI>
+        </UL>
+        <BR><B>Log lists:</B>
+        <UL>
+          <LI><A href="/{%s endpoint.ENDPOINTSTRING_USABLETLSLOGS %}">{%s endpoint.ENDPOINTSTRING_USABLETLSLOGS %}</A> - Usable TLS Logs</LI>
+          <LI><A href="/{%s endpoint.ENDPOINTSTRING_ACTIVETLSLOGS %}">{%s endpoint.ENDPOINTSTRING_ACTIVETLSLOGS %}</A> - Active TLS Logs</LI>
+          <LI><A href="/{%s endpoint.ENDPOINTSTRING_TESTTLSLOGS %}">{%s endpoint.ENDPOINTSTRING_TESTTLSLOGS %}</A> - Test TLS Logs</LI>
+          <LI><A href="/{%s endpoint.ENDPOINTSTRING_USABLEBIMILOGS %}">{%s endpoint.ENDPOINTSTRING_USABLEBIMILOGS %}</A> - Usable BIMI Logs</LI>
+        </UL>
+      </TD>
+      <TD style="vertical-align:bottom;padding-left:50px">{%= Dashboards() %}<BR><BR>{%= BuiltAt() %}<BR></TD>
+    </TR>
+  </TABLE>
+  <BR><BR><BR>{%= Copyright() %}
+</BODY>
+</HTML>
+{% endfunc %}
