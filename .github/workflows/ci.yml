@@ -19,6 +19,9 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Generate templates
+        run: go run github.com/valyala/quicktemplate/qtc@v1.8.0 -dir=request/templates
+
       - name: Run tests
         run: go test ./...
 
@@ -32,6 +35,9 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+
+      - name: Generate templates
+        run: go run github.com/valyala/quicktemplate/qtc@v1.8.0 -dir=request/templates
 
       - name: Run tests with race detector
         run: go test -race ./...
