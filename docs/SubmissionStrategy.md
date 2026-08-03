@@ -44,11 +44,13 @@ The caller can set explicit values for `SCTs` (total SCT count) and `Operators` 
 
 Starting from the appropriate base log list (Usable TLS, Usable BIMI, Test, or crt.sh Active), the following filters are applied:
 
-- **Expiry check** — if policy compliance is required, expired certificates are rejected.
+- **Expiry check** — if policy compliance is required (without test logs), expired certificates are rejected.
 - **Temporal compatibility** — the log's temporal interval must cover the certificate's validity period.
-- **Policy state** — when policy compliance is required, only logs in the `Usable` state (and not `ReadOnly`, `Retired`, or `Rejected`) are used.
+- **Policy state** — when policy compliance is required (without test logs), only logs in the `Usable` state (and not `ReadOnly`, `Retired`, or `Rejected`) are used.
 - **Chain validation** — the certificate chain must validate to one of the log's accepted root certificates. Validation results are cached per chain/log pair.
 - **Sufficiency check** — if there are not enough compatible logs/operators to meet the requirements, submission is aborted early.
+
+> **Note:** When `testLogs` is true, the expiry check and policy state filters are skipped even if `policyCompliant` is true. This allows testing quorum logic against test logs without requiring production log state or unexpired certificates.
 
 ## 4. Strategy (`strategy.go`)
 

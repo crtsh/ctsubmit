@@ -173,6 +173,15 @@ When `policyCompliant` is `true` (the default), ctsubmit automatically enforces 
 
 For BIMI Mark Certificates, the Usable BIMI log list is used instead of the Usable TLS log list.
 
+### Interaction with `testLogs`
+
+When both `policyCompliant` and `testLogs` are true, the quorum requirements above (SCT count, operator diversity, RFC 6962 requirement) are still enforced, but the following policy-compliance filters are relaxed:
+
+- **Expired certificates are accepted** — the expiry check is skipped, allowing test submissions of expired certificates.
+- **Log state is not enforced** — logs do not need to be in the `Usable` state; `ReadOnly`, `Retired`, and other states are permitted.
+
+This allows testing policy-compliant submission flows against test logs that may not carry production state metadata.
+
 ## GET Endpoints
 
 ### Web Forms
