@@ -254,7 +254,14 @@ func initViper() error {
 	viper.SetDefault("logging.xffUseFirstIPAddress", false)
 
 	// Render results to Config Struct.
-	_ = viper.ReadInConfig() // Ignore errors, because we also support reading config from environment variables.
+	// A missing config file is fine (config can come entirely from environment
+	// variables), but a config file that exists yet fails to parse indicates an
+	// operator misconfiguration that must not be silently ignored.
+	if err := viper.ReadInConfig(); err != nil {
+		if _, notFound := err.(viper.ConfigFileNotFoundError); !notFound {
+			return err
+		}
+	}
 	return viper.Unmarshal(&Config)
 }
 
