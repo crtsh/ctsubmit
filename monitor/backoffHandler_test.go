@@ -224,9 +224,22 @@ func TestGetBackoffUnknownURL(t *testing.T) {
 	}
 }
 
-func TestRecordBadResponseUnknownURLReturnsFalse(t *testing.T) {
-	if RecordBadResponse("https://nonexistent.example.test/", fmt.Errorf("err")) {
-		t.Fatal("RecordBadResponse for unknown URL should return false")
+func TestRecordBadResponseUnknownURLCreatesEntry(t *testing.T) {
+	// A log URL that isn't in the init()-populated maps (e.g. a log added to the
+	// list at runtime) should get a backoff entry created on first use, rather
+	// than being silently dropped.
+	url := "https://newly-added-log.example.test/"
+
+	mutexBadResponse.Lock()
+	delete(backoffBadResponse, url)
+	mutexBadResponse.Unlock()
+
+	if !RecordBadResponse(url, fmt.Errorf("err")) {
+		t.Fatal("RecordBadResponse should create an entry and return true for an unknown URL")
+	}
+
+	if d, _ := GetBadResponseBackoff(url); d <= 0 {
+		t.Fatal("expected positive backoff after RecordBadResponse created the entry")
 	}
 }
 

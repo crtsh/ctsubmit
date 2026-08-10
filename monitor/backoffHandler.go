@@ -64,8 +64,8 @@ func RecordBadResponse(submissionURL string, err error) bool {
 
 	boBad, ok := backoffBadResponse[submissionURL]
 	if !ok {
-		logger.Logger.Error("Bad response backoff data not found", zap.String("url", submissionURL))
-		return false
+		boBad = &backoffEntry{}
+		backoffBadResponse[submissionURL] = boBad
 	}
 
 	backoffUntil := time.Now().Add(config.Config.Strategy.Backoff.BadResponsePeriod)
@@ -85,8 +85,8 @@ func RecordTimeout(submissionURL string, err error) bool {
 
 	boTimeout, ok := backoffTimeout[submissionURL]
 	if !ok {
-		logger.Logger.Error("Timeout backoff data not found", zap.String("url", submissionURL))
-		return false
+		boTimeout = &backoffEntry{}
+		backoffTimeout[submissionURL] = boTimeout
 	}
 
 	backoffUntil := time.Now().Add(config.Config.Strategy.Backoff.TimeoutPeriod)
@@ -111,8 +111,8 @@ func Record5xxResponse(submissionURL string, httpResponse *http.Response) bool {
 
 	bo5xx, ok := backoff5xx[submissionURL]
 	if !ok {
-		logger.Logger.Error("5xx backoff data not found", zap.String("url", submissionURL))
-		return false
+		bo5xx = &backoffEntry{}
+		backoff5xx[submissionURL] = bo5xx
 	}
 
 	backoffUntil := time.Now().Add(backoffDuration)
@@ -138,8 +138,8 @@ func Record4xxResponse(submissionURL string, httpResponse *http.Response) bool {
 
 	bo4xx, ok := backoff4xx[submissionURL]
 	if !ok {
-		logger.Logger.Error("4xx backoff data not found", zap.String("url", submissionURL))
-		return false
+		bo4xx = &backoffEntry{}
+		backoff4xx[submissionURL] = bo4xx
 	}
 
 	backoffUntil := time.Now().Add(backoffDuration)
@@ -160,8 +160,8 @@ func RecordSlowResponse(submissionURL string) bool {
 
 	boSlow, ok := backoffSlowResponse[submissionURL]
 	if !ok {
-		logger.Logger.Error("Slow response backoff data not found", zap.String("url", submissionURL))
-		return false
+		boSlow = &backoffEntry{}
+		backoffSlowResponse[submissionURL] = boSlow
 	}
 
 	backoffUntil := time.Now().Add(config.Config.Strategy.Backoff.SlowResponsePeriod)
