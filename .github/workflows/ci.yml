@@ -20,7 +20,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Generate templates
-        run: go run github.com/valyala/quicktemplate/qtc@v1.8.0 -dir=request/templates
+        run: go run github.com/valyala/quicktemplate/qtc@latest -dir=request/templates
 
       - name: Run tests
         run: go test ./...
@@ -37,7 +37,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Generate templates
-        run: go run github.com/valyala/quicktemplate/qtc@v1.8.0 -dir=request/templates
+        run: go run github.com/valyala/quicktemplate/qtc@latest -dir=request/templates
 
       - name: Scan for known vulnerabilities
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
@@ -54,7 +54,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Generate templates
-        run: go run github.com/valyala/quicktemplate/qtc@v1.8.0 -dir=request/templates
+        run: go run github.com/valyala/quicktemplate/qtc@latest -dir=request/templates
 
       - name: Run tests with race detector
         run: go test -race ./...
