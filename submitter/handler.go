@@ -154,7 +154,7 @@ func Handler(ctx context.Context, apiEndpoint endpoint.Endpoint, submissionReque
 			submissionResponse.FinalTBSCertB64 = base64.StdEncoding.EncodeToString(tbsCertificate)
 
 			// Evaluate CT policy compliance using ctlint, and include the linter findings in the response.
-			submissionResponse.CTLint = runCTLint(tbsCertificate)
+			submissionResponse.CTLint = runCTLint(tbsCertificate, sha256IssuerSPKI)
 		}
 	}
 

@@ -1,6 +1,7 @@
 package submitter
 
 import (
+	"crypto/sha256"
 	"fmt"
 
 	"github.com/crtsh/ctsubmit/pki"
@@ -8,7 +9,7 @@ import (
 	"github.com/crtsh/ctlint"
 )
 
-func runCTLint(tbsCertificate []byte) []CTLintResult {
+func runCTLint(tbsCertificate []byte, sha256IssuerSPKI *[sha256.Size]byte) []CTLintResult {
 	var lres []CTLintResult
 
 	dummyCert, err := pki.MakeDummyCertificate(tbsCertificate)
@@ -18,7 +19,7 @@ func runCTLint(tbsCertificate []byte) []CTLintResult {
 			Severity: "fatal",
 		})
 	} else {
-		results := ctlint.CheckCertificate(dummyCert, nil)
+		results := ctlint.CheckCertificate(dummyCert, sha256IssuerSPKI)
 		for _, result := range results {
 			lresult := CTLintResult{
 				Finding: result[3:],
