@@ -25,6 +25,25 @@ jobs:
       - name: Run tests
         run: go test ./...
 
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Generate templates
+        run: go run github.com/valyala/quicktemplate/qtc@latest -dir=request/templates
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.12.2
+
   govulncheck:
     runs-on: ubuntu-latest
     steps:

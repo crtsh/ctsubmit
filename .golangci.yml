@@ -1,0 +1,21 @@
+version: "2"
+
+linters:
+  default: standard
+  settings:
+    errcheck:
+      # Ignoring the error from Close() (e.g. on an HTTP response body or a file
+      # opened for reading) is idiomatic and not a real defect.
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os.File).Close
+    govet:
+      # The "inline" analyzer only echoes //go:fix inline directives from
+      # dependencies; it flags no defect in our own code.
+      disable:
+        - inline
+  exclusions:
+    generated: lax
+    paths:
+      # Generated quicktemplate sources (regenerated at build time).
+      - request/templates

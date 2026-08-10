@@ -1,4 +1,4 @@
-# ctsubmit [![Go Report](https://goreportcard.com/badge/github.com/crtsh/ctsubmit)](https://goreportcard.com/report/github.com/crtsh/ctsubmit)
+# ctsubmit [![CI](https://github.com/crtsh/ctsubmit/actions/workflows/ci.yml/badge.svg)](https://github.com/crtsh/ctsubmit/actions/workflows/ci.yml)
 
 A REST API and web interface for submitting (pre)certificate chains to [Certificate Transparency](https://certificate.transparency.dev/) logs and collecting Signed Certificate Timestamps (SCTs).
 
