@@ -47,13 +47,13 @@ func DetoxTBSCertificateFromPrecertificate(precertificate []byte) (*TBSCertifica
 	for i, extension := range c.TBSCertificate.Extensions {
 		if extension.Id.Equal(x509.OIDExtensionCTPoison) {
 			if poisonIdx != -1 {
-				return nil, fmt.Errorf("Multiple CT Poison extensions found")
+				return nil, fmt.Errorf("multiple CT Poison extensions found")
 			}
 			poisonIdx = i
 		}
 	}
 	if poisonIdx == -1 {
-		return nil, fmt.Errorf("No CT Poison extension found")
+		return nil, fmt.Errorf("no CT Poison extension found")
 	}
 
 	// Remove the CT Poison extension.

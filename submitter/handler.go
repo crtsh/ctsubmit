@@ -20,13 +20,13 @@ import (
 func Handler(ctx context.Context, apiEndpoint endpoint.Endpoint, submissionRequest *SubmissionRequest) (*SubmissionResponse, error) {
 	// Check "chain" parameter is present and contains at least one certificate.
 	if len(submissionRequest.Chain) == 0 {
-		return nil, fmt.Errorf("Missing or empty 'chain' parameter")
+		return nil, fmt.Errorf("missing or empty 'chain' parameter")
 	}
 
 	// Parse the first certificate in the chain.
 	cert, err := x509.ParseCertificate(submissionRequest.Chain[0])
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse first certificate: %v", err)
+		return nil, fmt.Errorf("failed to parse first certificate: %v", err)
 	}
 
 	// Ensure appropriate input for add-chain vs add-pre-chain.
@@ -35,14 +35,14 @@ func Handler(ctx context.Context, apiEndpoint endpoint.Endpoint, submissionReque
 	var detoxedTBSCert *pki.TBSCertificate
 	if cert.IsPrecertificate() {
 		if apiEndpoint == endpoint.ENDPOINT_ADDCHAIN {
-			return nil, fmt.Errorf("Precertificate submitted to add-chain endpoint")
+			return nil, fmt.Errorf("precertificate submitted to add-chain endpoint")
 		}
 
 		entryType = ctgo.PrecertLogEntryType
 
 		// Remove the CT Poison extension from the precertificate to produce the "detoxed" TBSCertificate.
 		if detoxedTBSCert, err = pki.DetoxTBSCertificateFromPrecertificate(cert.Raw); err != nil {
-			return nil, fmt.Errorf("Failed to detox precertificate: %v", err)
+			return nil, fmt.Errorf("failed to detox precertificate: %v", err)
 		}
 
 		// Re-marshal the detoxed TBSCertificate.
@@ -53,7 +53,7 @@ func Handler(ctx context.Context, apiEndpoint endpoint.Endpoint, submissionReque
 
 	} else {
 		if apiEndpoint == endpoint.ENDPOINT_ADDPRECHAIN {
-			return nil, fmt.Errorf("Certificate submitted to add-pre-chain endpoint")
+			return nil, fmt.Errorf("certificate submitted to add-pre-chain endpoint")
 		}
 
 		entryType = ctgo.X509LogEntryType
@@ -84,7 +84,7 @@ func Handler(ctx context.Context, apiEndpoint endpoint.Endpoint, submissionReque
 	if len(submissionRequest.Chain) > 1 {
 		issuer, err := x509.ParseCertificate(submissionRequest.Chain[1])
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse issuer certificate: %v", err)
+			return nil, fmt.Errorf("failed to parse issuer certificate: %v", err)
 		}
 		hash := sha256.Sum256(issuer.RawSubjectPublicKeyInfo)
 		sha256IssuerSPKI = &hash
@@ -99,14 +99,14 @@ func Handler(ctx context.Context, apiEndpoint endpoint.Endpoint, submissionReque
 	var scts []*ctgo.SignedCertificateTimestamp
 	submissionResponse.LogResponse, scts, err = submissionRequest.submit(ctx, strategy, sha256IssuerSPKI, entryType, entryData)
 	if err != nil {
-		return nil, fmt.Errorf("Submission failed: %v", err)
+		return nil, fmt.Errorf("submission failed: %v", err)
 	}
 
 	// If requested, generate mimic SCTs.
 	if submissionRequest.Mimics && sha256IssuerSPKI != nil {
 		mimicSCTs, err := pki.GenerateMimicSCTs(entryData, *sha256IssuerSPKI)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to generate mimic SCTs: %v", err)
+			return nil, fmt.Errorf("failed to generate mimic SCTs: %v", err)
 		}
 
 		// Append the mimic SCTs to the SCT list to be embedded in the final TBSCertificate.
@@ -116,7 +116,7 @@ func Handler(ctx context.Context, apiEndpoint endpoint.Endpoint, submissionReque
 		for _, mimicSCT := range mimicSCTs {
 			sig, err := tls.Marshal(mimicSCT.Signature)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to marshal mimic SCT signature: %v", err)
+				return nil, fmt.Errorf("failed to marshal mimic SCT signature: %v", err)
 			}
 			submissionResponse.LogResponse = append(submissionResponse.LogResponse, ctgo.AddChainResponse{
 				SCTVersion: mimicSCT.SCTVersion,
@@ -147,7 +147,7 @@ func Handler(ctx context.Context, apiEndpoint endpoint.Endpoint, submissionReque
 		if config.Config.Response.ProduceFinalTBSCert {
 			tbsCertificate, err := pki.ProduceFinalTBSCertificate(detoxedTBSCert, sctListBytes)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to generate final TBSCertificate: %v", err)
+				return nil, fmt.Errorf("failed to generate final TBSCertificate: %v", err)
 			}
 
 			// Base64-encode the final TBSCertificate for inclusion in the response.

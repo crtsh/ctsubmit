@@ -17,7 +17,7 @@ var LogID_Daedalus = [sha256.Size]byte{0x1d, 0x02, 0x4b, 0x8e, 0xb1, 0x49, 0x8b,
 func determineCompatibleLogs(cert *x509.Certificate, submissionRequest *SubmissionRequest, logList *loglist3.LogList) (*loglist3.LogList, error) {
 	// When CT policy compliance is required (without test logs), ensure the certificate is unexpired.
 	if submissionRequest.PolicyCompliant && !submissionRequest.TestLogs && time.Now().After(cert.NotAfter) {
-		return nil, fmt.Errorf("Certificate is expired, but policy compliance is required")
+		return nil, fmt.Errorf("certificate is expired, but policy compliance is required")
 	}
 
 	// Filter out logs that are not temporally compatible with the certificate.
@@ -32,7 +32,7 @@ func determineCompatibleLogs(cert *x509.Certificate, submissionRequest *Submissi
 		for _, log := range operator.Logs {
 			logID, err := logid.FromBytes(log.LogID)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to parse log ID: %v", err)
+				return nil, fmt.Errorf("failed to parse log ID: %v", err)
 			}
 
 			// Treat Daedalus as a special case.  It only accepts expired certificates.
@@ -57,7 +57,7 @@ func determineCompatibleLogs(cert *x509.Certificate, submissionRequest *Submissi
 		for _, tiledLog := range operator.TiledLogs {
 			logID, err := logid.FromBytes(tiledLog.LogID)
 			if err != nil {
-				return nil, fmt.Errorf("Failed to parse log ID: %v", err)
+				return nil, fmt.Errorf("failed to parse log ID: %v", err)
 			}
 			// When CT policy compliance is required (without test logs), we may only use SCTs from logs that are currently Usable.
 			if submissionRequest.PolicyCompliant && !submissionRequest.TestLogs {
@@ -79,9 +79,9 @@ func determineCompatibleLogs(cert *x509.Certificate, submissionRequest *Submissi
 
 	// Check we have enough compatible logs to meet the submission request.
 	if len(finalLogList.Operators) < submissionRequest.Operators {
-		return nil, fmt.Errorf("Not enough compatible logs found (required: %d operators, found: %d operators)", submissionRequest.Operators, len(finalLogList.Operators))
+		return nil, fmt.Errorf("not enough compatible logs found (required: %d operators, found: %d operators)", submissionRequest.Operators, len(finalLogList.Operators))
 	} else if totalLogs < submissionRequest.SCTs {
-		return nil, fmt.Errorf("Not enough compatible logs found (required: %d SCTs, found: %d SCTs)", submissionRequest.SCTs, totalLogs)
+		return nil, fmt.Errorf("not enough compatible logs found (required: %d SCTs, found: %d SCTs)", submissionRequest.SCTs, totalLogs)
 	}
 
 	return finalLogList, nil

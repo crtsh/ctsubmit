@@ -163,7 +163,7 @@ func processHTTPResponse(strategyIdx int, submissionURL string, resp *http.Respo
 		} else if resp.StatusCode >= 400 && resp.StatusCode < 500 {
 			monitor.Record4xxResponse(submissionURL, resp)
 		} else {
-			monitor.RecordBadResponse(submissionURL, fmt.Errorf("Unexpected HTTP status: %d", resp.StatusCode))
+			monitor.RecordBadResponse(submissionURL, fmt.Errorf("unexpected HTTP status: %d", resp.StatusCode))
 		}
 
 		events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: fmt.Sprintf("Failed: HTTP %d", resp.StatusCode), timeTaken: timeTaken}

@@ -74,13 +74,13 @@ func POST(fhctx *fasthttp.RequestCtx, path string) int {
 
 	responseFormat := getResponseFormat(fhctx)
 	if responseFormat == -1 {
-		err = fmt.Errorf("Unrecognised response format")
+		err = fmt.Errorf("unrecognised response format")
 		return status
 	}
 
 	requestBody := fhctx.Request.Body()
 	if len(requestBody) == 0 {
-		err = fmt.Errorf("Empty request body")
+		err = fmt.Errorf("empty request body")
 		return status
 	}
 

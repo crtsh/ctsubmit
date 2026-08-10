@@ -163,7 +163,7 @@ func fetchCheckpoint(submissionURL, monitoringURL string, sd *STHData) {
 		return
 	}
 	if len(n.Sigs) < 1 {
-		RecordBadResponse(sd.SubmissionURL, fmt.Errorf("Checkpoint note had no verified signatures"))
+		RecordBadResponse(sd.SubmissionURL, fmt.Errorf("checkpoint note had no verified signatures"))
 		return
 	}
 
@@ -173,7 +173,7 @@ func fetchCheckpoint(submissionURL, monitoringURL string, sd *STHData) {
 		return
 	}
 	if checkpoint.Origin != sd.KeyName {
-		RecordBadResponse(sd.SubmissionURL, fmt.Errorf("Unexpected checkpoint origin: %s", checkpoint.Origin))
+		RecordBadResponse(sd.SubmissionURL, fmt.Errorf("unexpected checkpoint origin: %s", checkpoint.Origin))
 		return
 	}
 
@@ -220,7 +220,7 @@ func fetchResource(submissionURL, endpointURL string) []byte {
 		} else if resp.StatusCode >= 400 && resp.StatusCode < 500 {
 			Record4xxResponse(submissionURL, resp)
 		} else {
-			RecordBadResponse(submissionURL, fmt.Errorf("Unexpected HTTP status: %d", resp.StatusCode))
+			RecordBadResponse(submissionURL, fmt.Errorf("unexpected HTTP status: %d", resp.StatusCode))
 		}
 		return nil
 	}
