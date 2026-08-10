@@ -35,7 +35,7 @@ func (sr *SubmissionRequest) submit(ctx context.Context, strategy []StrategyMemb
 	}
 
 	// Marshal the request body once, since it's the same for all logs. Strip the additional fields that ctsubmit recognizes but logs won't recognize.
-	requestBody, err := json.Marshal(ctgo.AddChainRequest{Chain: sr.AddChainRequest.Chain})
+	requestBody, err := json.Marshal(ctgo.AddChainRequest{Chain: sr.Chain})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to marshal submission request: %w", err)
 	}

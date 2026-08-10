@@ -42,5 +42,5 @@ func main() {
 	<-ctx.Done()
 
 	// Ensure all log messages are flushed before we exit.
-	logger.Logger.Sync()
+	_ = logger.Logger.Sync()
 }

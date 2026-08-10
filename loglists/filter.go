@@ -33,8 +33,12 @@ var _ = promauto.NewGaugeFunc(prometheus.GaugeOpts{
 })
 
 func init() {
-	ctloglists.LoadAcceptedRoots()
-	ctloglists.LoadLogLists()
+	if err := ctloglists.LoadAcceptedRoots(); err != nil {
+		panic(fmt.Sprintf("failed to load accepted roots: %v", err))
+	}
+	if err := ctloglists.LoadLogLists(); err != nil {
+		panic(fmt.Sprintf("failed to load log lists: %v", err))
+	}
 
 	determineUsableTLSLogs()
 	determineActiveTLSLogs()

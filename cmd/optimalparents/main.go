@@ -192,9 +192,9 @@ func main() {
 	defer f.Close()
 
 	w := csv.NewWriter(f)
-	w.Write([]string{"Authority Key Identifier", "Parent (Usable TLS)", "Parent (Active TLS)", "Parent (Test TLS)", "Parent (Usable BIMI)"})
+	_ = w.Write([]string{"Authority Key Identifier", "Parent (Usable TLS)", "Parent (Active TLS)", "Parent (Test TLS)", "Parent (Usable BIMI)"})
 	for _, r := range rows {
-		w.Write([]string{r.ski, r.parents[0], r.parents[1], r.parents[2], r.parents[3]})
+		_ = w.Write([]string{r.ski, r.parents[0], r.parents[1], r.parents[2], r.parents[3]})
 	}
 	w.Flush()
 	if err := w.Error(); err != nil {
