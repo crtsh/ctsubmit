@@ -15,7 +15,7 @@ require (
 	github.com/valyala/quicktemplate v1.8.0
 	go.uber.org/automaxprocs v1.6.0
 	go.uber.org/zap v1.28.0
-	golang.org/x/mod v0.38.0
+	golang.org/x/mod v0.39.0
 	schneider.vip/problem v1.9.1
 )
 
