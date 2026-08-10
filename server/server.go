@@ -159,6 +159,9 @@ func Run() {
 	}
 	if config.Config.Server.MonitoringPort != 0 {
 		listenAddr := fmt.Sprintf("%s:%d", config.Config.Server.MonitoringAddress, config.Config.Server.MonitoringPort)
+		if config.Config.Server.MonitoringAddress == "" || config.Config.Server.MonitoringAddress == "0.0.0.0" {
+			logger.Logger.Warn("MonitoringServer is binding to all interfaces; set server.monitoringAddress (e.g. \"127.0.0.1\") to restrict access in hardened/sidecar deployments", zap.Int("port", config.Config.Server.MonitoringPort))
+		}
 		logger.Logger.Info("Starting MonitoringServer", zap.String("address", listenAddr))
 		go func() {
 			if err := monitoringServer.ListenAndServe(listenAddr); err != nil {
