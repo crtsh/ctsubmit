@@ -4,6 +4,7 @@ Contents:
 
 - [Installation: Docker (Recommended method)](#installation-docker-recommended-method)
 - [Installation: Manual](#installation-manual)
+  - [Generated template sources](#generated-template-sources)
 - [Architecture](#architecture)
 - [Configuration](#configuration)
   - [Environment Variables](#environment-variables)
@@ -43,6 +44,19 @@ Run the executable:
 ```bash
 ./ctsubmit
 ```
+
+### Generated template sources
+
+The web interface is rendered from [quicktemplate](https://github.com/valyala/quicktemplate) templates. The `*.qtpl.go` Go sources under [request/templates](../request/templates) are **generated** from the corresponding `*.qtpl` files and are deliberately **not** committed to the repository (so they can never become stale relative to their `*.qtpl` sources). A fresh checkout therefore does not build with a plain `go build ./...` until they have been generated.
+
+`make` regenerates them on every build: a full `make` runs `clean generate`, which deletes any existing `*.qtpl.go` and regenerates them from scratch. The [Dockerfile](../Dockerfile) does the same. If you build without `make`, generate the template sources first:
+
+```bash
+go run github.com/valyala/quicktemplate/qtc@latest -dir=request/templates
+go build ./...
+```
+
+Equivalently, run `make generate` (which invokes the same command), or `go generate ./...` (the [go:generate directive](../request/templates/generate.go) runs `qtc` for the templates directory). Re-run the generation step whenever you change a `*.qtpl` file.
 
 ## Architecture
 
