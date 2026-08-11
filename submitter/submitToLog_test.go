@@ -56,6 +56,10 @@ func makeSignedSCT(t *testing.T, priv *ecdsa.PrivateKey, logID [sha256.Size]byte
 	return sct
 }
 
+// registerTestVerifier injects a signature verifier for logID into the shared
+// ctloglists.LogSignatureVerifierMap. This mutates process-global state, so it
+// relies on unique (random) log IDs and t.Cleanup to avoid interfering with
+// other tests; do not run these tests in parallel without adding locking.
 func registerTestVerifier(t *testing.T, logID [sha256.Size]byte, pub crypto.PublicKey) {
 	t.Helper()
 	sv, err := ctgo.NewSignatureVerifier(pub)
