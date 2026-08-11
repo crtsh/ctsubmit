@@ -38,9 +38,12 @@ type STHData struct {
 }
 
 var (
-	sthData       = make(map[string]*STHData)
-	sthMutex      sync.RWMutex
-	sthHTTPClient = &http.Client{Timeout: config.Config.STHMonitor.HTTPTimeout}
+	sthData  = make(map[string]*STHData)
+	sthMutex sync.RWMutex
+	// Built lazily so importing this package does not read config at init time.
+	sthHTTPClient = sync.OnceValue(func() *http.Client {
+		return &http.Client{Timeout: config.Config.STHMonitor.HTTPTimeout}
+	})
 )
 
 func init() {
@@ -201,9 +204,9 @@ func fetchResource(submissionURL, endpointURL string) []byte {
 		return nil
 	}
 
-	req.Header.Set("User-Agent", "github.com/crtsh/ct_submit")
+	req.Header.Set("User-Agent", "github.com/crtsh/ctsubmit")
 
-	resp, err := sthHTTPClient.Do(req)
+	resp, err := sthHTTPClient().Do(req)
 	if err != nil {
 		if utils.IsTimeoutError(err) {
 			RecordTimeout(submissionURL, err)

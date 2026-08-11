@@ -197,10 +197,12 @@ func (s *Settings) validate() error {
 // errors instead of terminating the process, making it suitable for tests and
 // for future constructor-injection call sites.
 //
-// It is not yet used at startup: the monitor, pki, and submitter/strategy
-// packages still read the config.Config global at package-init time, so loading
-// a second Settings here would create a parallel value that could diverge from
-// theirs. Adopt Load as the sole source once those init-time reads are removed.
+// It is not yet used at startup: many packages (monitor, submitter, server,
+// request, health) still read the config.Config global at runtime, so loading a
+// second Settings here would create a parallel value that could diverge from
+// theirs. Adopt Load as the sole source once those runtime reads are injected.
+// Package-init-time reads of the global have been removed, so importing those
+// packages no longer requires config.Config to be populated beforehand.
 func Load() (*Settings, error) {
 	var s Settings
 	if err := initViper(&s); err != nil {

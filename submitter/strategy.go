@@ -32,20 +32,18 @@ type StrategyMember struct {
 	TimeTaken          time.Duration `json:"timeTaken,omitempty"`
 }
 
-var excludedURLRegexes []*regexp.Regexp
-var preferredURLRegexes []*regexp.Regexp
-
-func init() {
-	// Compile regexes defined in config, for efficient use during strategizing.
-	for _, re := range config.Config.Strategy.Excluded.LogURLRegex {
-		excludedURLRegexes = append(excludedURLRegexes, regexp.MustCompile(re))
+// compileRegexes compiles URL match patterns from config. It panics on an
+// invalid pattern (via regexp.MustCompile), preserving the startup fail-fast
+// behaviour now that compilation happens in New rather than an init function.
+func compileRegexes(patterns []string) []*regexp.Regexp {
+	var regexes []*regexp.Regexp
+	for _, pattern := range patterns {
+		regexes = append(regexes, regexp.MustCompile(pattern))
 	}
-	for _, re := range config.Config.Strategy.Preferred.LogURLRegex {
-		preferredURLRegexes = append(preferredURLRegexes, regexp.MustCompile(re))
-	}
+	return regexes
 }
 
-func devizeSubmissionStrategy(compatibleLogList *loglist3.LogList, entryType ctgo.LogEntryType) []StrategyMember {
+func (s *Submitter) devizeSubmissionStrategy(compatibleLogList *loglist3.LogList, entryType ctgo.LogEntryType) []StrategyMember {
 	var strategy []StrategyMember
 
 	// Populate strategy list with the compatible logs.
@@ -53,7 +51,7 @@ func devizeSubmissionStrategy(compatibleLogList *loglist3.LogList, entryType ctg
 		sm := StrategyMember{Operator: operator.Name, Bucket: NEUTRAL}
 
 		// Check if this operator is excluded by config.
-		if slices.Contains(config.Config.Strategy.Excluded.Operators, operator.Name) {
+		if slices.Contains(s.cfg.Strategy.Excluded.Operators, operator.Name) {
 			sm.Bucket = EXCLUDED
 			sm.Outcome = "Operator excluded by config"
 		}
@@ -84,7 +82,7 @@ func devizeSubmissionStrategy(compatibleLogList *loglist3.LogList, entryType ctg
 
 	for i := 0; i < len(strategy); i++ {
 		// Apply log exclusion config.
-		strategy[i].applyLogExclusionConfig(strategy[i].SubmissionURL)
+		strategy[i].applyLogExclusionConfig(strategy[i].SubmissionURL, s.excludedURLRegexes)
 
 		// Disprefer logs with STH ages that exceed the MMD.
 		if strategy[i].Bucket == NEUTRAL {
@@ -123,7 +121,7 @@ func devizeSubmissionStrategy(compatibleLogList *loglist3.LogList, entryType ctg
 
 		// Apply log preference config.
 		if strategy[i].Bucket == NEUTRAL {
-			strategy[i].applyLogPreferenceConfig(strategy[i].SubmissionURL)
+			strategy[i].applyLogPreferenceConfig(strategy[i].SubmissionURL, s.preferredURLRegexes)
 		}
 
 		// Generate a random weight for each non-excluded log, for use in randomizing the order of logs within buckets.
@@ -141,8 +139,8 @@ func devizeSubmissionStrategy(compatibleLogList *loglist3.LogList, entryType ctg
 	return strategy
 }
 
-func (sm *StrategyMember) applyLogExclusionConfig(submissionURL string) {
-	for _, re := range excludedURLRegexes {
+func (sm *StrategyMember) applyLogExclusionConfig(submissionURL string, regexes []*regexp.Regexp) {
+	for _, re := range regexes {
 		if re.MatchString(submissionURL) {
 			sm.Bucket = EXCLUDED
 			sm.Outcome = "Log excluded by config"
@@ -229,9 +227,9 @@ func (sm *StrategyMember) dispreferIfSlowResponseBackoff() {
 	}
 }
 
-func (sm *StrategyMember) applyLogPreferenceConfig(submissionURL string) {
+func (sm *StrategyMember) applyLogPreferenceConfig(submissionURL string, regexes []*regexp.Regexp) {
 	if sm.Bucket != EXCLUDED {
-		for _, re := range preferredURLRegexes {
+		for _, re := range regexes {
 			if re.MatchString(submissionURL) {
 				sm.Bucket = PREFERRED_BYCONFIG
 				return

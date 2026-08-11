@@ -76,7 +76,7 @@ func (s *Submitter) Handle(ctx context.Context, apiEndpoint endpoint.Endpoint, s
 	}
 
 	// Strategize which logs to attempt submission to, in which order.
-	strategy := devizeSubmissionStrategy(compatibleLogList, entryType)
+	strategy := s.devizeSubmissionStrategy(compatibleLogList, entryType)
 
 	// Compute or lookup the issuer certificate's SPKI SHA-256 hash.
 	var sha256IssuerSPKI *[sha256.Size]byte

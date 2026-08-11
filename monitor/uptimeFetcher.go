@@ -37,11 +37,14 @@ type EndpointUptimes struct {
 }
 
 var (
-	uptime24h        = make(map[string]*EndpointUptimes)
-	mutex24h         sync.RWMutex
-	uptime90d        = make(map[string]*EndpointUptimes)
-	mutex90d         sync.RWMutex
-	uptimeHTTPClient = &http.Client{Timeout: config.Config.UptimeFetcher.HTTPTimeout}
+	uptime24h = make(map[string]*EndpointUptimes)
+	mutex24h  sync.RWMutex
+	uptime90d = make(map[string]*EndpointUptimes)
+	mutex90d  sync.RWMutex
+	// Built lazily so importing this package does not read config at init time.
+	uptimeHTTPClient = sync.OnceValue(func() *http.Client {
+		return &http.Client{Timeout: config.Config.UptimeFetcher.HTTPTimeout}
+	})
 )
 
 func init() {
@@ -97,7 +100,7 @@ func fetchEndpointUptimes(csvURL string, uptimeMap map[string]*EndpointUptimes, 
 		return err
 	}
 
-	resp, err := uptimeHTTPClient.Do(req)
+	resp, err := uptimeHTTPClient().Do(req)
 	if err != nil {
 		return err
 	}
