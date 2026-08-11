@@ -1,4 +1,4 @@
-# ctsubmit [![CI](https://github.com/crtsh/ctsubmit/actions/workflows/ci.yml/badge.svg)](https://github.com/crtsh/ctsubmit/actions/workflows/ci.yml)
+# ctsubmit [![CI](https://github.com/crtsh/ctsubmit/actions/workflows/ci.yml/badge.svg)](https://github.com/crtsh/ctsubmit/actions/workflows/ci.yml) [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/crtsh/ctsubmit/badge)](https://securityscorecards.dev/viewer/?uri=github.com/crtsh/ctsubmit) [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE) [![Release](https://img.shields.io/github/v/release/crtsh/ctsubmit)](https://github.com/crtsh/ctsubmit/releases) [![Go Version](https://img.shields.io/github/go-mod/go-version/crtsh/ctsubmit)](go.mod) [![GHCR](https://img.shields.io/badge/ghcr.io-ctsubmit-blue?logo=docker)](https://github.com/crtsh/ctsubmit/pkgs/container/ctsubmit)
 
 A REST API and web interface for submitting (pre)certificate chains to [Certificate Transparency](https://certificate.transparency.dev/) logs and collecting Signed Certificate Timestamps (SCTs).
 
