@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	"github.com/crtsh/ctsubmit/config"
 	"github.com/crtsh/ctsubmit/endpoint"
 	"github.com/crtsh/ctsubmit/pki"
 
@@ -17,7 +16,7 @@ import (
 	"github.com/google/certificate-transparency-go/x509"
 )
 
-func Handler(ctx context.Context, apiEndpoint endpoint.Endpoint, submissionRequest *SubmissionRequest) (*SubmissionResponse, error) {
+func (s *Submitter) Handle(ctx context.Context, apiEndpoint endpoint.Endpoint, submissionRequest *SubmissionRequest) (*SubmissionResponse, error) {
 	// Check "chain" parameter is present and contains at least one certificate.
 	if len(submissionRequest.Chain) == 0 {
 		return nil, fmt.Errorf("missing or empty 'chain' parameter")
@@ -97,7 +96,7 @@ func Handler(ctx context.Context, apiEndpoint endpoint.Endpoint, submissionReque
 	// Submit to the logs.
 	submissionResponse := &SubmissionResponse{}
 	var scts []*ctgo.SignedCertificateTimestamp
-	submissionResponse.LogResponse, scts, err = submissionRequest.submit(ctx, strategy, sha256IssuerSPKI, entryType, entryData)
+	submissionResponse.LogResponse, scts, err = s.submit(ctx, submissionRequest, strategy, sha256IssuerSPKI, entryType, entryData)
 	if err != nil {
 		return nil, fmt.Errorf("submission failed: %v", err)
 	}
@@ -137,14 +136,14 @@ func Handler(ctx context.Context, apiEndpoint endpoint.Endpoint, submissionReque
 	if entryType == ctgo.PrecertLogEntryType {
 		// Optionally include the serialized SCT list, to assist CAs in constructing the final TBSCertificate themselves.
 		// This is disabled by default; see the response.includeSCTList configuration option.
-		if config.Config.Response.IncludeSCTList {
+		if s.cfg.Response.IncludeSCTList {
 			submissionResponse.SCTListB64 = base64.StdEncoding.EncodeToString(sctListBytes)
 		}
 
 		// Optionally generate and return the final TBSCertificate (with SCTs embedded and CT poison removed).
 		// WARNING: CAs that blindly sign this value are trusting ctsubmit with their signing key's output.
 		// This is disabled by default; see the response.produceFinalTBSCert configuration option.
-		if config.Config.Response.ProduceFinalTBSCert {
+		if s.cfg.Response.ProduceFinalTBSCert {
 			tbsCertificate, err := pki.ProduceFinalTBSCertificate(detoxedTBSCert, sctListBytes)
 			if err != nil {
 				return nil, fmt.Errorf("failed to generate final TBSCertificate: %v", err)
@@ -159,7 +158,7 @@ func Handler(ctx context.Context, apiEndpoint endpoint.Endpoint, submissionReque
 	}
 
 	// Omit LogResponse from the response if configured.
-	if !config.Config.Response.IncludeLogResponses {
+	if !s.cfg.Response.IncludeLogResponses {
 		submissionResponse.LogResponse = nil
 	}
 

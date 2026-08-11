@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/crtsh/ctsubmit/config"
 	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/monitor"
 	"github.com/crtsh/ctsubmit/utils"
@@ -23,27 +22,21 @@ import (
 	"go.uber.org/zap"
 )
 
-var submissionHTTPClient *http.Client
-
-func init() {
-	submissionHTTPClient = &http.Client{Timeout: config.Config.Strategy.Submission.HTTPTimeout}
-}
-
 // submitToLog performs the HTTP submission to a single log and sends events on the channel.
 // It sends eventTryNext if the try-next threshold is exceeded before the HTTP response,
 // and eventSlow if the slow response threshold is exceeded (for metrics).
 // It then sends eventSuccess or eventFailure when the HTTP response completes.
-func submitToLog(ctx context.Context, strategyIdx int, submissionURL string, apiPath string, requestBody []byte, sha256IssuerSPKI *[sha256.Size]byte, entryType ctgo.LogEntryType, entryData []byte, events chan<- submissionEvent) {
+func (s *Submitter) submitToLog(ctx context.Context, strategyIdx int, submissionURL string, apiPath string, requestBody []byte, sha256IssuerSPKI *[sha256.Size]byte, entryType ctgo.LogEntryType, entryData []byte, events chan<- submissionEvent) {
 	endpointURL, err := url.JoinPath(submissionURL, apiPath)
 	if err != nil {
-		logger.Logger.Error("Failed to construct submission URL", zap.String("submissionURL", submissionURL), zap.Error(err))
+		s.log.Error("Failed to construct submission URL", zap.String("submissionURL", submissionURL), zap.Error(err))
 		events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: fmt.Sprintf("Failed: could not construct submission URL: %v", err)}
 		return
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpointURL, bytes.NewReader(requestBody))
 	if err != nil {
-		logger.Logger.Error("Failed to create HTTP request", zap.String("url", endpointURL), zap.Error(err))
+		s.log.Error("Failed to create HTTP request", zap.String("url", endpointURL), zap.Error(err))
 		events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: fmt.Sprintf("Failed: could not create HTTP request: %v", err)}
 		return
 	}
@@ -53,9 +46,9 @@ func submitToLog(ctx context.Context, strategyIdx int, submissionURL string, api
 	req.Header.Set("Idempotency-Key", hex.EncodeToString(req_body_sha256[:]))
 
 	// Start one-shot timers for try-next and slow response detection.
-	tryNextTimer := time.NewTimer(config.Config.Strategy.Submission.TryNextResponseThreshold)
+	tryNextTimer := time.NewTimer(s.cfg.Strategy.Submission.TryNextResponseThreshold)
 	defer tryNextTimer.Stop()
-	slowTimer := time.NewTimer(config.Config.Strategy.Submission.SlowResponseThreshold)
+	slowTimer := time.NewTimer(s.cfg.Strategy.Submission.SlowResponseThreshold)
 	defer slowTimer.Stop()
 
 	// Run the HTTP request in a separate goroutine so we can race it against the timers.
@@ -66,7 +59,7 @@ func submitToLog(ctx context.Context, strategyIdx int, submissionURL string, api
 	httpCh := make(chan httpResult, 1)
 	httpStart := time.Now()
 	go func() {
-		resp, err := submissionHTTPClient.Do(req)
+		resp, err := s.client.Do(req)
 		httpCh <- httpResult{resp: resp, err: err}
 	}()
 

@@ -18,7 +18,7 @@ import (
 
 var errQuorumMet = errors.New("quorum met")
 
-func (sr *SubmissionRequest) submit(ctx context.Context, strategy []StrategyMember, sha256IssuerSPKI *[sha256.Size]byte, entryType ctgo.LogEntryType, entryData []byte) ([]ctgo.AddChainResponse, []*ctgo.SignedCertificateTimestamp, error) {
+func (s *Submitter) submit(ctx context.Context, sr *SubmissionRequest, strategy []StrategyMember, sha256IssuerSPKI *[sha256.Size]byte, entryType ctgo.LogEntryType, entryData []byte) ([]ctgo.AddChainResponse, []*ctgo.SignedCertificateTimestamp, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, nil, err
 	}
@@ -82,7 +82,7 @@ func (sr *SubmissionRequest) submit(ctx context.Context, strategy []StrategyMemb
 		logger.Logger.Debug("Launching submission", zap.Int("launchSeq", launchSeq), zap.Int("strategyIdx", strategyIdx), zap.String("url", strategy[strategyIdx].SubmissionURL), zap.String("operator", strategy[strategyIdx].Operator), zap.Int("inFlight", inFlight))
 
 		go func(idx int) {
-			submitToLog(submissionCtx, idx, strategy[idx].SubmissionURL, apiPath, requestBody, sha256IssuerSPKI, entryType, entryData, events)
+			s.submitToLog(submissionCtx, idx, strategy[idx].SubmissionURL, apiPath, requestBody, sha256IssuerSPKI, entryType, entryData, events)
 		}(strategyIdx)
 	}
 

@@ -7,6 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/crtsh/ctsubmit/config"
+	"github.com/crtsh/ctsubmit/logger"
+
 	ctgo "github.com/google/certificate-transparency-go"
 )
 
@@ -18,17 +21,14 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func TestSubmitPropagatesContextCancellationToLogRequest(t *testing.T) {
 	requestCancelled := make(chan struct{})
-	originalHTTPClient := submissionHTTPClient
-	submissionHTTPClient = &http.Client{
+	s := New(&config.Config, logger.Logger)
+	s.client = &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			<-req.Context().Done()
 			close(requestCancelled)
 			return nil, req.Context().Err()
 		}),
 	}
-	defer func() {
-		submissionHTTPClient = originalHTTPClient
-	}()
 
 	submissionRequest := NewSubmissionRequest()
 	submissionRequest.Chain = [][]byte{[]byte("certificate")}
@@ -43,7 +43,7 @@ func TestSubmitPropagatesContextCancellationToLogRequest(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
 
-	_, _, err := submissionRequest.submit(ctx, strategy, nil, ctgo.X509LogEntryType, []byte("certificate"))
+	_, _, err := s.submit(ctx, submissionRequest, strategy, nil, ctgo.X509LogEntryType, []byte("certificate"))
 	if !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("submit() error = %v, want %v", err, context.DeadlineExceeded)
 	}

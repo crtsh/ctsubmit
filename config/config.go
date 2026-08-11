@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"math"
 	"os"
 	"runtime/debug"
@@ -15,7 +16,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type config struct {
+type Settings struct {
 	Server struct {
 		WebserverPort        int           `mapstructure:"webserverPort"`
 		WebserverPath        string        `mapstructure:"webserverPath"`
@@ -93,7 +94,7 @@ const (
 var (
 	ApplicationName       string
 	ApplicationNamespace  string
-	Config                config
+	Config                Settings
 	DefaultResponseFormat = RESPONSEFORMAT_JSON
 
 	// Automatically populated by the build system (see Makefile / Dockerfile).
@@ -112,58 +113,16 @@ func init() {
 	}
 
 	// Initialize Viper and Logger.
-	if err := initViper(); err != nil {
+	if err := initViper(&Config); err != nil {
 		panic(err)
 	} else if err = logger.InitLogger(Config.Logging.IsDevelopment, Config.Logging.Level, Config.Logging.SamplingInitial, Config.Logging.SamplingThereafter); err != nil {
 		panic(err)
 	}
 	logger.XFFUseFirstIPAddress = Config.Logging.XFFUseFirstIPAddress
 
-	// Validation configuration values.
-	if Config.Strategy.UptimeThreshold.SubmitEndpoint24h < 0 || Config.Strategy.UptimeThreshold.SubmitEndpoint24h > 100 {
-		logger.Logger.Fatal("strategy.uptimeThreshold.submitEndpoint24h must be between 0 and 100")
-	}
-	if Config.Strategy.UptimeThreshold.LowestEndpoint90d < 99 || Config.Strategy.UptimeThreshold.LowestEndpoint90d > 100 {
-		logger.Logger.Fatal("strategy.uptimeThreshold.lowestEndpoint90d must be between 99 and 100")
-	}
-	if Config.Strategy.Backoff.BadResponsePeriod < 0 {
-		logger.Logger.Fatal("strategy.backoff.badResponsePeriod must be non-negative")
-	}
-	if Config.Strategy.Backoff.TimeoutPeriod < 0 {
-		logger.Logger.Fatal("strategy.backoff.timeoutPeriod must be non-negative")
-	}
-	if Config.Strategy.Backoff.Default5xxPeriod < 0 {
-		logger.Logger.Fatal("strategy.backoff.default5xxPeriod must be non-negative")
-	}
-	if Config.Strategy.Backoff.Default4xxPeriod < 0 {
-		logger.Logger.Fatal("strategy.backoff.default4xxPeriod must be non-negative")
-	}
-	if Config.Strategy.Backoff.SlowResponsePeriod < 0 {
-		logger.Logger.Fatal("strategy.backoff.slowResponsePeriod must be non-negative")
-	}
-	if Config.Strategy.Submission.TryNextResponseThreshold <= 0 {
-		logger.Logger.Fatal("strategy.submission.tryNextResponseThreshold must be positive")
-	}
-	if Config.Strategy.Submission.SlowResponseThreshold <= 0 {
-		logger.Logger.Fatal("strategy.submission.slowResponseThreshold must be positive")
-	}
-	if Config.Strategy.Submission.HTTPTimeout <= 0 {
-		logger.Logger.Fatal("strategy.submission.httpTimeout must be positive")
-	}
-	if Config.STHMonitor.RefreshInterval <= 0 {
-		logger.Logger.Fatal("sthMonitor.refreshInterval must be positive")
-	}
-	if Config.STHMonitor.HTTPTimeout <= 0 {
-		logger.Logger.Fatal("sthMonitor.httpTimeout must be positive")
-	}
-	if Config.UptimeFetcher.RefreshInterval <= 0 {
-		logger.Logger.Fatal("uptimeFetcher.refreshInterval must be positive")
-	}
-	if Config.UptimeFetcher.HTTPTimeout <= 0 {
-		logger.Logger.Fatal("uptimeFetcher.httpTimeout must be positive")
-	}
-	if !Config.Response.IncludeLogResponses && !Config.Response.IncludeSCTList && !Config.Response.ProduceFinalTBSCert {
-		logger.Logger.Fatal("at least one of response.includeLogResponses, response.includeSCTList, response.produceFinalTBSCert must be true")
+	// Validate configuration values.
+	if err := Config.validate(); err != nil {
+		logger.Logger.Fatal("invalid configuration", zap.Error(err))
 	}
 
 	// Log build information.
@@ -196,7 +155,59 @@ func init() {
 	}
 }
 
-func initViper() error {
+// validate checks configuration values and returns the first error found.
+func (s *Settings) validate() error {
+	switch {
+	case s.Strategy.UptimeThreshold.SubmitEndpoint24h < 0 || s.Strategy.UptimeThreshold.SubmitEndpoint24h > 100:
+		return errors.New("strategy.uptimeThreshold.submitEndpoint24h must be between 0 and 100")
+	case s.Strategy.UptimeThreshold.LowestEndpoint90d < 99 || s.Strategy.UptimeThreshold.LowestEndpoint90d > 100:
+		return errors.New("strategy.uptimeThreshold.lowestEndpoint90d must be between 99 and 100")
+	case s.Strategy.Backoff.BadResponsePeriod < 0:
+		return errors.New("strategy.backoff.badResponsePeriod must be non-negative")
+	case s.Strategy.Backoff.TimeoutPeriod < 0:
+		return errors.New("strategy.backoff.timeoutPeriod must be non-negative")
+	case s.Strategy.Backoff.Default5xxPeriod < 0:
+		return errors.New("strategy.backoff.default5xxPeriod must be non-negative")
+	case s.Strategy.Backoff.Default4xxPeriod < 0:
+		return errors.New("strategy.backoff.default4xxPeriod must be non-negative")
+	case s.Strategy.Backoff.SlowResponsePeriod < 0:
+		return errors.New("strategy.backoff.slowResponsePeriod must be non-negative")
+	case s.Strategy.Submission.TryNextResponseThreshold <= 0:
+		return errors.New("strategy.submission.tryNextResponseThreshold must be positive")
+	case s.Strategy.Submission.SlowResponseThreshold <= 0:
+		return errors.New("strategy.submission.slowResponseThreshold must be positive")
+	case s.Strategy.Submission.HTTPTimeout <= 0:
+		return errors.New("strategy.submission.httpTimeout must be positive")
+	case s.STHMonitor.RefreshInterval <= 0:
+		return errors.New("sthMonitor.refreshInterval must be positive")
+	case s.STHMonitor.HTTPTimeout <= 0:
+		return errors.New("sthMonitor.httpTimeout must be positive")
+	case s.UptimeFetcher.RefreshInterval <= 0:
+		return errors.New("uptimeFetcher.refreshInterval must be positive")
+	case s.UptimeFetcher.HTTPTimeout <= 0:
+		return errors.New("uptimeFetcher.httpTimeout must be positive")
+	case !s.Response.IncludeLogResponses && !s.Response.IncludeSCTList && !s.Response.ProduceFinalTBSCert:
+		return errors.New("at least one of response.includeLogResponses, response.includeSCTList, response.produceFinalTBSCert must be true")
+	}
+	return nil
+}
+
+// Load reads and validates configuration into a fresh Settings value without
+// touching the package-level Config global. It performs no logging and returns
+// errors instead of terminating the process, making it suitable for tests and
+// for future constructor-injection call sites.
+func Load() (*Settings, error) {
+	var s Settings
+	if err := initViper(&s); err != nil {
+		return nil, err
+	}
+	if err := s.validate(); err != nil {
+		return nil, err
+	}
+	return &s, nil
+}
+
+func initViper(dst *Settings) error {
 	// Imports config file values from least to most specific.
 	viper.SetConfigName("config.yaml")
 	viper.SetConfigType("yaml")
@@ -262,7 +273,7 @@ func initViper() error {
 			return err
 		}
 	}
-	return viper.Unmarshal(&Config)
+	return viper.Unmarshal(dst)
 }
 
 func ParseResponseFormat(format string) ResponseFormat {
