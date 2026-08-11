@@ -279,3 +279,68 @@ spec:
           configMap:
             name: ctsubmit-config
 ```
+
+### Hardened variant (monitoring bound to localhost)
+
+The example above binds the monitoring server to all interfaces so the kubelet can reach the `httpGet` liveness/readiness probes, which it performs against the **pod IP**, not loopback.
+
+To restrict the monitoring server (health probes, metrics, and any debug endpoints) to localhost, set `server.monitoringAddress` to `"127.0.0.1"`. Because the kubelet can no longer reach an `httpGet` probe on loopback, the probes must run **inside the pod**. Use `exec` probes that call the monitoring server over localhost, and scrape `/metrics` from a co-located sidecar (or expose it only through one).
+
+ConfigMap:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ctsubmit-config
+data:
+  config.yaml: |
+    server:
+      monitoringAddress: "127.0.0.1"   # Restrict monitoring server to localhost.
+      enableDebugEndpoints: false      # Keep debug/pprof/config endpoints disabled.
+```
+
+Deployment (probes changed from `httpGet` to `exec`):
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ctsubmit
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ctsubmit
+  template:
+    metadata:
+      labels:
+        app: ctsubmit
+    spec:
+      containers:
+        - name: ctsubmit
+          image: ghcr.io/crtsh/ctsubmit:latest
+          ports:
+            - containerPort: 8080
+              name: web
+            # Monitoring port is intentionally not published; it is reachable
+            # only over localhost within the pod.
+          livenessProbe:
+            exec:
+              command: ["wget", "-q", "-O-", "http://127.0.0.1:8081/livez"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["wget", "-q", "-O-", "http://127.0.0.1:8081/readyz"]
+            periodSeconds: 5
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          configMap:
+            name: ctsubmit-config
+```
+
+> **Note:** `server.monitoringAddress: "127.0.0.1"` is appropriate when the monitoring server is consumed only from within the pod (in-pod `exec` probes, or a sidecar scraping `/metrics` over localhost). If the kubelet must reach `httpGet` probes, or Prometheus scrapes the pod directly over the network, bind the monitoring server to a private interface reachable by those clients instead of loopback. Substitute your image's available HTTP client for `wget` if it is not present.
