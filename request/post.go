@@ -45,7 +45,7 @@ func getResponseFormat(fhctx *fasthttp.RequestCtx) config.ResponseFormat {
 	return config.DefaultResponseFormat
 }
 
-func POST(fhctx *fasthttp.RequestCtx, path string) int {
+func POST(fhctx *fasthttp.RequestCtx, path string, sub *submitter.Submitter) int {
 	status := fasthttp.StatusBadRequest
 
 	ctx, cancel := context.WithDeadline(context.Background(), fhctx.Time().Add(time.Duration(config.Config.Server.RequestTimeout)))
@@ -87,7 +87,7 @@ func POST(fhctx *fasthttp.RequestCtx, path string) int {
 	submissionRequest := submitter.NewSubmissionRequest()
 	var submissionResponse *submitter.SubmissionResponse
 	if err = json.Unmarshal(requestBody, submissionRequest); err == nil {
-		submissionResponse, err = submitter.Handler(ctx, apiEndpoint, submissionRequest)
+		submissionResponse, err = sub.Handle(ctx, apiEndpoint, submissionRequest)
 		if err == nil {
 			status = fasthttp.StatusOK
 		}

@@ -6,10 +6,16 @@ import (
 	"testing"
 
 	"github.com/crtsh/ctsubmit/config"
+	"github.com/crtsh/ctsubmit/logger"
+	"github.com/crtsh/ctsubmit/submitter"
 
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttputil"
 )
+
+func testSubmitter() *submitter.Submitter {
+	return submitter.New(&config.Config, logger.Logger)
+}
 
 func TestGetResponseFormatFromParam(t *testing.T) {
 	ctx := &fasthttp.RequestCtx{}
@@ -46,7 +52,7 @@ func TestPOSTUnknownEndpointReturns404(t *testing.T) {
 	ctx.Request.SetRequestURI("/not-a-real-endpoint")
 	ctx.Request.SetBody([]byte(`{"chain":[]}`))
 
-	if got := POST(ctx, "not-a-real-endpoint"); got != fasthttp.StatusNotFound {
+	if got := POST(ctx, "not-a-real-endpoint", testSubmitter()); got != fasthttp.StatusNotFound {
 		t.Fatalf("expected 404 for unknown endpoint, got %d", got)
 	}
 }
@@ -56,7 +62,7 @@ func TestPOSTEmptyBodyReturnsBadRequest(t *testing.T) {
 	ctx.Request.Header.SetMethod(fasthttp.MethodPost)
 	ctx.Request.SetRequestURI("/add-chain")
 
-	if got := POST(ctx, "add-chain"); got != fasthttp.StatusBadRequest {
+	if got := POST(ctx, "add-chain", testSubmitter()); got != fasthttp.StatusBadRequest {
 		t.Fatalf("expected 400 for empty body, got %d", got)
 	}
 }
@@ -69,7 +75,7 @@ func TestPOSTTimeoutReturnsMinusOne(t *testing.T) {
 	ctx.Request.SetRequestURI("/add-chain")
 	ctx.Request.SetBody([]byte(`{"chain":["AQID"]}`))
 
-	if got := POST(ctx, "add-chain"); got != -1 {
+	if got := POST(ctx, "add-chain", testSubmitter()); got != -1 {
 		t.Fatalf("expected -1 (timeout) for an already-expired request context, got %d", got)
 	}
 }
@@ -80,13 +86,14 @@ func TestPOSTTimeoutReturnsMinusOne(t *testing.T) {
 func newInmemHandlerClient(t *testing.T) *fasthttp.HostClient {
 	t.Helper()
 	ln := fasthttputil.NewInmemoryListener()
+	sub := testSubmitter()
 	srv := &fasthttp.Server{
 		Handler: func(ctx *fasthttp.RequestCtx) {
 			path := strings.ToLower(string(ctx.Path()))
 			if len(path) > 0 {
 				path = path[1:]
 			}
-			if POST(ctx, path) == -1 {
+			if POST(ctx, path, sub) == -1 {
 				ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
 			}
 		},
@@ -164,4 +171,3 @@ func TestPOSTHTMLErrorResponse(t *testing.T) {
 		t.Fatal("expected a non-empty HTML error body")
 	}
 }
-

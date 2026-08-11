@@ -7,10 +7,12 @@ import (
 
 	_ "go.uber.org/automaxprocs"
 
+	"github.com/crtsh/ctsubmit/config"
 	"github.com/crtsh/ctsubmit/health"
 	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/monitor"
 	"github.com/crtsh/ctsubmit/server"
+	"github.com/crtsh/ctsubmit/submitter"
 )
 
 func main() {
@@ -22,7 +24,10 @@ func main() {
 
 	// Start the HTTP servers (Web and Monitoring) immediately.
 	// Readiness probes will report "not ready" until initial data is loaded.
-	server.Run()
+	//
+	// Inject the already-loaded config.Config global rather than config.Load(); see config.Load for why.
+	sub := submitter.New(&config.Config, logger.Logger)
+	server.Run(sub)
 	defer server.Shutdown()
 
 	// Start the various goroutines.

@@ -10,6 +10,7 @@ import (
 	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/loglists"
 	"github.com/crtsh/ctsubmit/request"
+	"github.com/crtsh/ctsubmit/submitter"
 	"github.com/crtsh/ctsubmit/utils"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -21,7 +22,7 @@ import (
 var webServer *fasthttp.Server
 var webRequestLatency prometheus.Summary
 
-func webHandler(fhctx *fasthttp.RequestCtx) {
+func webHandler(fhctx *fasthttp.RequestCtx, sub *submitter.Submitter) {
 	endpointPath := strings.ToLower(utils.B2S(fhctx.Path())[1:])
 
 	if fhctx.IsGet() {
@@ -52,7 +53,7 @@ func webHandler(fhctx *fasthttp.RequestCtx) {
 		}
 
 	} else if fhctx.IsPost() {
-		if request.POST(fhctx, endpointPath) == -1 {
+		if request.POST(fhctx, endpointPath, sub) == -1 {
 			// Request timed out.
 			fhctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
 			fhctx.SetContentType("text/plain")
@@ -123,9 +124,9 @@ func monitoringHandler(fhctx *fasthttp.RequestCtx) {
 	monitoringRequestLatency.Observe(float64(time.Since(fhctx.Time())) / float64(time.Second))
 }
 
-func Run() {
+func Run(sub *submitter.Submitter) {
 	webServer = &fasthttp.Server{
-		Handler:               webHandler,
+		Handler:               func(fhctx *fasthttp.RequestCtx) { webHandler(fhctx, sub) },
 		CloseOnShutdown:       true,
 		ReadTimeout:           config.Config.Server.ReadTimeout,
 		IdleTimeout:           config.Config.Server.IdleTimeout,
