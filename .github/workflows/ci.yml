@@ -10,6 +10,10 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      # Minimum overall statement coverage (%) required to pass. Ratchet this
+      # upward over time to prevent coverage regressions as the codebase grows.
+      COVERAGE_THRESHOLD: "39"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -22,8 +26,34 @@ jobs:
       - name: Generate templates
         run: go run github.com/valyala/quicktemplate/qtc@latest -dir=request/templates
 
-      - name: Run tests
-        run: go test ./...
+      - name: Run tests with coverage
+        run: go test -covermode=atomic -coverprofile=coverage.out ./...
+
+      - name: Report coverage
+        run: |
+          # Drop generated quicktemplate sources: their //line directives point
+          # back at the .qtpl files, which `go tool cover` cannot parse.
+          grep -v '/request/templates/' coverage.out > coverage.filtered.out
+          go tool cover -func=coverage.filtered.out
+          go tool cover -html=coverage.filtered.out -o coverage.html
+
+      - name: Enforce coverage threshold
+        run: |
+          total=$(go tool cover -func=coverage.filtered.out | awk '/^total:/ {sub(/%/, "", $NF); print $NF}')
+          echo "Total coverage: ${total}% (threshold: ${COVERAGE_THRESHOLD}%)"
+          awk -v total="$total" -v min="$COVERAGE_THRESHOLD" \
+            'BEGIN { exit (total + 0 < min + 0) ? 1 : 0 }' \
+            || { echo "::error::Coverage ${total}% is below the required ${COVERAGE_THRESHOLD}%"; exit 1; }
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.out
+            coverage.html
+          if-no-files-found: ignore
 
   lint:
     runs-on: ubuntu-latest
