@@ -16,7 +16,7 @@ type DashboardLog struct {
 }
 %}
 
-{% func DashboardPage(logListName string, logs []DashboardLog) %}
+{% func DashboardPage(mon *monitor.Monitor, logListName string, logs []DashboardLog) %}
 {%= Head("CT Submission Proxy") %}
   <STYLE type="text/css">
     table tr:nth-child(2n+4) {
@@ -52,7 +52,7 @@ type DashboardLog struct {
             <TH>Reason</TH>
           </TR>
 {% for _, log := range logs %}
-{%= LogDetailRow(log) %}
+{%= LogDetailRow(log, mon) %}
 {% endfor %}
         </TABLE>
       </TD>
@@ -67,12 +67,12 @@ type DashboardLog struct {
 </HTML>
 {% endfunc %}
 
-{% func LogDetailRow(log DashboardLog) %}
+{% func LogDetailRow(log DashboardLog, mon *monitor.Monitor) %}
 {% code
 	sthAgeString := "?"
 	treeSizeString := "?"
 	monURL, _ := url.JoinPath(log.MonitoringURL, "/")
-	sd, ok := monitor.GetSTHData(monURL)
+	sd, ok := mon.GetSTHData(monURL)
 	if ok {
 		if sd.Timestamp != nil {
 			sthAgeString = AgeString(int32(time.Since(*sd.Timestamp)/time.Second), log.MMD)
@@ -84,32 +84,32 @@ type DashboardLog struct {
 
 	subURL, _ := url.JoinPath(log.SubmissionURL, "/")
 	var percentage24h, percentage90d string
-	up24h, ok24 := monitor.GetEndpointUptime24h(subURL, "LOWEST")
+	up24h, ok24 := mon.GetEndpointUptime24h(subURL, "LOWEST")
 	if ok24 {
 		percentage24h = PercentageString(up24h, config.Config.Strategy.UptimeThreshold.SubmitEndpoint24h, 0)
 	}
-	up90d, ok90 := monitor.GetEndpointUptime90d(subURL, "LOWEST")
+	up90d, ok90 := mon.GetEndpointUptime90d(subURL, "LOWEST")
 	if ok90 {
 		percentage90d = PercentageString(up90d, config.Config.Strategy.UptimeThreshold.LowestEndpoint90d, 99)
 	}
 
-	backoff, _ := monitor.GetBadResponseBackoff(subURL)
+	backoff, _ := mon.GetBadResponseBackoff(subURL)
 	reason := "Bad Response"
 	statusCode := 0
 	if backoff <= 0 {
-		backoff, _ = monitor.GetTimeoutBackoff(subURL)
+		backoff, _ = mon.GetTimeoutBackoff(subURL)
 		reason = "Timeout"
 	}
 	if backoff <= 0 {
-		backoff, _, statusCode = monitor.Get5xxBackoff(subURL)
+		backoff, _, statusCode = mon.Get5xxBackoff(subURL)
 		reason = fmt.Sprintf("HTTP %d", statusCode)
 	}
 	if backoff <= 0 {
-		backoff, _, statusCode = monitor.Get4xxBackoff(subURL)
+		backoff, _, statusCode = mon.Get4xxBackoff(subURL)
 		reason = fmt.Sprintf("HTTP %d", statusCode)
 	}
 	if backoff <= 0 {
-		backoff, _ = monitor.GetSlowResponseBackoff(subURL)
+		backoff, _ = mon.GetSlowResponseBackoff(subURL)
 		reason = "Slow Response"
 	}
 	backoffAgeString := AgeString(int32(backoff/time.Second), int32(backoff/time.Second))
@@ -118,7 +118,7 @@ type DashboardLog struct {
 		reason = ""
 	}
 
-	successes, failures := monitor.GetRecentOutcomeCounts(subURL)
+	successes, failures := mon.GetRecentOutcomeCounts(subURL)
 	successString := ""
 	failureString := ""
 	if successes > 0 || failures > 0 {
@@ -131,7 +131,7 @@ type DashboardLog struct {
 	}
 
 	responseTimeString := ""
-	if rt, ok := monitor.GetAvgResponseTime(subURL); ok {
+	if rt, ok := mon.GetAvgResponseTime(subURL); ok {
 		responseTimeString = fmt.Sprintf("%.3fs", rt.Seconds())
 	}
 %}

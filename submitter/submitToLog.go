@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/crtsh/ctsubmit/logger"
-	"github.com/crtsh/ctsubmit/monitor"
 	"github.com/crtsh/ctsubmit/utils"
 
 	"github.com/crtsh/ctloglists"
@@ -87,10 +86,10 @@ func (s *Submitter) submitToLog(ctx context.Context, strategyIdx int, submission
 					result.resp.Body.Close()
 				}
 				events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: cancelledSubmissionOutcome(ctx), timeTaken: timeTaken}
-				monitor.RecordSubmissionOutcome(submissionURL, "cancelled")
+				s.mon.RecordSubmissionOutcome(submissionURL, "cancelled")
 				return
 			}
-			processHTTPResponse(strategyIdx, submissionURL, result.resp, result.err, sha256IssuerSPKI, entryType, entryData, timeTaken, events)
+			s.processHTTPResponse(strategyIdx, submissionURL, result.resp, result.err, sha256IssuerSPKI, entryType, entryData, timeTaken, events)
 			return
 
 		case <-ctx.Done():
@@ -104,7 +103,7 @@ func (s *Submitter) submitToLog(ctx context.Context, strategyIdx int, submission
 			case <-time.After(100 * time.Millisecond):
 			}
 			events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: cancelledSubmissionOutcome(ctx), timeTaken: time.Since(httpStart)}
-			monitor.RecordSubmissionOutcome(submissionURL, "cancelled")
+			s.mon.RecordSubmissionOutcome(submissionURL, "cancelled")
 			return
 		}
 	}
@@ -125,18 +124,18 @@ func cancelledSubmissionOutcome(ctx context.Context) string {
 	}
 }
 
-func processHTTPResponse(strategyIdx int, submissionURL string, resp *http.Response, err error, sha256IssuerSPKI *[sha256.Size]byte, entryType ctgo.LogEntryType, entryData []byte, timeTaken time.Duration, events chan<- submissionEvent) {
-	monitor.RecordSubmissionResponseTime(submissionURL, timeTaken)
+func (s *Submitter) processHTTPResponse(strategyIdx int, submissionURL string, resp *http.Response, err error, sha256IssuerSPKI *[sha256.Size]byte, entryType ctgo.LogEntryType, entryData []byte, timeTaken time.Duration, events chan<- submissionEvent) {
+	s.mon.RecordSubmissionResponseTime(submissionURL, timeTaken)
 
 	if err != nil {
 		if utils.IsTimeoutError(err) {
-			monitor.RecordTimeout(submissionURL, err)
+			s.mon.RecordTimeout(submissionURL, err)
 			events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: "Failed: timeout", timeTaken: timeTaken}
-			monitor.RecordSubmissionOutcome(submissionURL, "timeout")
+			s.mon.RecordSubmissionOutcome(submissionURL, "timeout")
 		} else {
-			monitor.RecordBadResponse(submissionURL, err)
+			s.mon.RecordBadResponse(submissionURL, err)
 			events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: fmt.Sprintf("Failed: HTTP error: %v", err), timeTaken: timeTaken}
-			monitor.RecordSubmissionOutcome(submissionURL, "http_error")
+			s.mon.RecordSubmissionOutcome(submissionURL, "http_error")
 		}
 		return
 	}
@@ -144,64 +143,64 @@ func processHTTPResponse(strategyIdx int, submissionURL string, resp *http.Respo
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		monitor.RecordBadResponse(submissionURL, err)
+		s.mon.RecordBadResponse(submissionURL, err)
 		events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: fmt.Sprintf("Failed: could not read response body: %v", err), timeTaken: timeTaken}
-		monitor.RecordSubmissionOutcome(submissionURL, "bad_response")
+		s.mon.RecordSubmissionOutcome(submissionURL, "bad_response")
 		return
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode >= 500 && resp.StatusCode < 600 {
-			monitor.Record5xxResponse(submissionURL, resp)
+			s.mon.Record5xxResponse(submissionURL, resp)
 		} else if resp.StatusCode >= 400 && resp.StatusCode < 500 {
-			monitor.Record4xxResponse(submissionURL, resp)
+			s.mon.Record4xxResponse(submissionURL, resp)
 		} else {
-			monitor.RecordBadResponse(submissionURL, fmt.Errorf("unexpected HTTP status: %d", resp.StatusCode))
+			s.mon.RecordBadResponse(submissionURL, fmt.Errorf("unexpected HTTP status: %d", resp.StatusCode))
 		}
 
 		events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: fmt.Sprintf("Failed: HTTP %d", resp.StatusCode), timeTaken: timeTaken}
-		monitor.RecordSubmissionOutcome(submissionURL, fmt.Sprintf("%dxx", resp.StatusCode/100))
+		s.mon.RecordSubmissionOutcome(submissionURL, fmt.Sprintf("%dxx", resp.StatusCode/100))
 		return
 	}
 
 	// Unmarshal the JSON response.
 	var addChainResponse ctgo.AddChainResponse
 	if err := json.Unmarshal(body, &addChainResponse); err != nil {
-		monitor.RecordBadResponse(submissionURL, err)
+		s.mon.RecordBadResponse(submissionURL, err)
 		events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: fmt.Sprintf("Failed: invalid JSON response: %v", err), timeTaken: timeTaken}
-		monitor.RecordSubmissionOutcome(submissionURL, "bad_response")
+		s.mon.RecordSubmissionOutcome(submissionURL, "bad_response")
 		return
 	}
 
 	// Encode the SCT.
 	sct, err := addChainResponse.ToSignedCertificateTimestamp()
 	if err != nil {
-		monitor.RecordBadResponse(submissionURL, err)
+		s.mon.RecordBadResponse(submissionURL, err)
 		events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: fmt.Sprintf("Failed: could not decode SCT: %v", err), timeTaken: timeTaken}
-		monitor.RecordSubmissionOutcome(submissionURL, "bad_response")
+		s.mon.RecordSubmissionOutcome(submissionURL, "bad_response")
 		return
 	}
 
 	// Reject the SCT if its timestamp is in the future.  Allow 1 second of tolerance for clock skew.
 	if time.UnixMilli(int64(sct.Timestamp)).After(time.Now().Add(time.Second)) {
-		monitor.RecordBadResponse(submissionURL, fmt.Errorf("SCT timestamp is %s in the future", time.Until(time.UnixMilli(int64(sct.Timestamp))).String()))
+		s.mon.RecordBadResponse(submissionURL, fmt.Errorf("SCT timestamp is %s in the future", time.Until(time.UnixMilli(int64(sct.Timestamp))).String()))
 		events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: fmt.Sprintf("Failed: SCT timestamp in the future (%d)", sct.Timestamp), timeTaken: timeTaken}
-		monitor.RecordSubmissionOutcome(submissionURL, "bad_response")
+		s.mon.RecordSubmissionOutcome(submissionURL, "bad_response")
 		return
 	}
 
 	// Verify the SCT's signature.
 	err = verifySCTSignature(sct, sha256IssuerSPKI, entryType, entryData)
 	if err != nil {
-		monitor.RecordBadResponse(submissionURL, err)
+		s.mon.RecordBadResponse(submissionURL, err)
 		events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: fmt.Sprintf("Failed: SCT signature verification failed: %v", err), timeTaken: timeTaken}
-		monitor.RecordSubmissionOutcome(submissionURL, "bad_response")
+		s.mon.RecordSubmissionOutcome(submissionURL, "bad_response")
 		return
 	}
 
 	logger.Logger.Debug("Accepted SCT", zap.Int("strategyIdx", strategyIdx), zap.String("submissionURL", submissionURL), zap.String("logID", hex.EncodeToString(sct.LogID.KeyID[:])), zap.Uint64("timestamp", sct.Timestamp))
 	events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventSuccess, response: addChainResponse, sct: sct, outcome: "Submission successful", timeTaken: timeTaken}
-	monitor.RecordSubmissionOutcome(submissionURL, "success")
+	s.mon.RecordSubmissionOutcome(submissionURL, "success")
 }
 
 func verifySCTSignature(sct *ctgo.SignedCertificateTimestamp, sha256IssuerSPKI *[sha256.Size]byte, entryType ctgo.LogEntryType, entryData []byte) error {

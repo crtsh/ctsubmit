@@ -26,19 +26,20 @@ func main() {
 	// Readiness probes will report "not ready" until initial data is loaded.
 	//
 	// Inject the already-loaded config.Config global rather than config.Load(); see config.Load for why.
-	sub := submitter.New(&config.Config, logger.Logger)
-	server.Run(sub)
+	mon := monitor.New(&config.Config)
+	sub := submitter.New(&config.Config, logger.Logger, mon)
+	server.Run(sub, mon)
 	defer server.Shutdown()
 
 	// Start the various goroutines.
 	logger.ShutdownWG.Add(2)
-	go monitor.UptimeFetcher(ctx)
-	go monitor.STHMonitor(ctx)
+	go mon.UptimeFetcher(ctx)
+	go mon.STHMonitor(ctx)
 
 	// Perform initial data fetches asynchronously, then mark the service as ready.
 	go func() {
-		monitor.FetchEndpointUptimes()
-		monitor.FetchAllSTHs()
+		mon.FetchEndpointUptimes()
+		mon.FetchAllSTHs()
 		health.SetInitialDataReady()
 		logger.Logger.Info("Initial external data loaded; service is now ready")
 	}()

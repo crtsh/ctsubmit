@@ -6,8 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/crtsh/ctsubmit/config"
+
 	// Blank import to trigger loglists.init(), which calls ctloglists.LoadLogLists()
-	// before monitor.init() populates backoff maps from CrtshV3Active.
+	// before the Monitor populates its backoff maps from CrtshV3Active.
 	_ "github.com/crtsh/ctsubmit/loglists"
 )
 
@@ -64,32 +66,33 @@ func TestParseRetryAfterNegative(t *testing.T) {
 	}
 }
 
-// anyBackoffURL returns a URL from the init()-populated backoff maps.
-func anyBackoffURL() string {
-	for url := range backoffBadResponse {
+// anyBackoffURL returns a URL from the Monitor's pre-populated backoff maps.
+func anyBackoffURL(m *Monitor) string {
+	for url := range m.backoffBadResponse {
 		return url
 	}
 	return ""
 }
 
 func TestRecordAndGetBadResponseBackoff(t *testing.T) {
-	url := anyBackoffURL()
+	m := New(&config.Config)
+	url := anyBackoffURL(m)
 	if url == "" {
 		t.Skip("no log URLs in backoff maps")
 	}
 
 	// Reset the entry to ensure a clean state.
-	mutexBadResponse.Lock()
-	backoffBadResponse[url] = &backoffEntry{}
-	mutexBadResponse.Unlock()
+	m.mutexBadResponse.Lock()
+	m.backoffBadResponse[url] = &backoffEntry{}
+	m.mutexBadResponse.Unlock()
 
-	if d, _ := GetBadResponseBackoff(url); d > 0 {
+	if d, _ := m.GetBadResponseBackoff(url); d > 0 {
 		t.Fatalf("expected no backoff initially, got %v", d)
 	}
 
-	RecordBadResponse(url, fmt.Errorf("test error"))
+	m.RecordBadResponse(url, fmt.Errorf("test error"))
 
-	d, reason := GetBadResponseBackoff(url)
+	d, reason := m.GetBadResponseBackoff(url)
 	if d <= 0 {
 		t.Fatal("expected positive backoff after RecordBadResponse")
 	}
@@ -99,22 +102,23 @@ func TestRecordAndGetBadResponseBackoff(t *testing.T) {
 }
 
 func TestRecordAndGetTimeoutBackoff(t *testing.T) {
-	url := anyBackoffURL()
+	m := New(&config.Config)
+	url := anyBackoffURL(m)
 	if url == "" {
 		t.Skip("no log URLs in backoff maps")
 	}
 
-	mutexTimeout.Lock()
-	backoffTimeout[url] = &backoffEntry{}
-	mutexTimeout.Unlock()
+	m.mutexTimeout.Lock()
+	m.backoffTimeout[url] = &backoffEntry{}
+	m.mutexTimeout.Unlock()
 
-	if d, _ := GetTimeoutBackoff(url); d > 0 {
+	if d, _ := m.GetTimeoutBackoff(url); d > 0 {
 		t.Fatalf("expected no backoff initially, got %v", d)
 	}
 
-	RecordTimeout(url, fmt.Errorf("timeout"))
+	m.RecordTimeout(url, fmt.Errorf("timeout"))
 
-	d, reason := GetTimeoutBackoff(url)
+	d, reason := m.GetTimeoutBackoff(url)
 	if d <= 0 {
 		t.Fatal("expected positive backoff after RecordTimeout")
 	}
@@ -124,22 +128,23 @@ func TestRecordAndGetTimeoutBackoff(t *testing.T) {
 }
 
 func TestRecordAndGetSlowResponseBackoff(t *testing.T) {
-	url := anyBackoffURL()
+	m := New(&config.Config)
+	url := anyBackoffURL(m)
 	if url == "" {
 		t.Skip("no log URLs in backoff maps")
 	}
 
-	mutexSlowResponse.Lock()
-	backoffSlowResponse[url] = &backoffEntry{}
-	mutexSlowResponse.Unlock()
+	m.mutexSlowResponse.Lock()
+	m.backoffSlowResponse[url] = &backoffEntry{}
+	m.mutexSlowResponse.Unlock()
 
-	if d, _ := GetSlowResponseBackoff(url); d > 0 {
+	if d, _ := m.GetSlowResponseBackoff(url); d > 0 {
 		t.Fatalf("expected no backoff initially, got %v", d)
 	}
 
-	RecordSlowResponse(url)
+	m.RecordSlowResponse(url)
 
-	d, reason := GetSlowResponseBackoff(url)
+	d, reason := m.GetSlowResponseBackoff(url)
 	if d <= 0 {
 		t.Fatal("expected positive backoff after RecordSlowResponse")
 	}
@@ -149,22 +154,23 @@ func TestRecordAndGetSlowResponseBackoff(t *testing.T) {
 }
 
 func TestRecord5xxWithRetryAfter(t *testing.T) {
-	url := anyBackoffURL()
+	m := New(&config.Config)
+	url := anyBackoffURL(m)
 	if url == "" {
 		t.Skip("no log URLs in backoff maps")
 	}
 
-	mutex5xx.Lock()
-	backoff5xx[url] = &backoffEntry{}
-	mutex5xx.Unlock()
+	m.mutex5xx.Lock()
+	m.backoff5xx[url] = &backoffEntry{}
+	m.mutex5xx.Unlock()
 
 	resp := &http.Response{
 		StatusCode: 503,
 		Header:     http.Header{"Retry-After": []string{"300"}},
 	}
-	Record5xxResponse(url, resp)
+	m.Record5xxResponse(url, resp)
 
-	d, reason, code := Get5xxBackoff(url)
+	d, reason, code := m.Get5xxBackoff(url)
 	if d <= 0 {
 		t.Fatal("expected positive backoff after Record5xxResponse")
 	}
@@ -177,22 +183,23 @@ func TestRecord5xxWithRetryAfter(t *testing.T) {
 }
 
 func TestRecord4xxResponse(t *testing.T) {
-	url := anyBackoffURL()
+	m := New(&config.Config)
+	url := anyBackoffURL(m)
 	if url == "" {
 		t.Skip("no log URLs in backoff maps")
 	}
 
-	mutex4xx.Lock()
-	backoff4xx[url] = &backoffEntry{}
-	mutex4xx.Unlock()
+	m.mutex4xx.Lock()
+	m.backoff4xx[url] = &backoffEntry{}
+	m.mutex4xx.Unlock()
 
 	resp := &http.Response{
 		StatusCode: 429,
 		Header:     http.Header{},
 	}
-	Record4xxResponse(url, resp)
+	m.Record4xxResponse(url, resp)
 
-	d, reason, code := Get4xxBackoff(url)
+	d, reason, code := m.Get4xxBackoff(url)
 	if d <= 0 {
 		t.Fatal("expected positive backoff after Record4xxResponse")
 	}
@@ -205,65 +212,68 @@ func TestRecord4xxResponse(t *testing.T) {
 }
 
 func TestGetBackoffUnknownURL(t *testing.T) {
+	m := New(&config.Config)
 	unknownURL := "https://nonexistent.example.test/"
 
-	if d, _ := GetBadResponseBackoff(unknownURL); d != 0 {
+	if d, _ := m.GetBadResponseBackoff(unknownURL); d != 0 {
 		t.Fatal("unknown URL should return zero backoff for bad response")
 	}
-	if d, _ := GetTimeoutBackoff(unknownURL); d != 0 {
+	if d, _ := m.GetTimeoutBackoff(unknownURL); d != 0 {
 		t.Fatal("unknown URL should return zero backoff for timeout")
 	}
-	if d, _, _ := Get5xxBackoff(unknownURL); d != 0 {
+	if d, _, _ := m.Get5xxBackoff(unknownURL); d != 0 {
 		t.Fatal("unknown URL should return zero backoff for 5xx")
 	}
-	if d, _, _ := Get4xxBackoff(unknownURL); d != 0 {
+	if d, _, _ := m.Get4xxBackoff(unknownURL); d != 0 {
 		t.Fatal("unknown URL should return zero backoff for 4xx")
 	}
-	if d, _ := GetSlowResponseBackoff(unknownURL); d != 0 {
+	if d, _ := m.GetSlowResponseBackoff(unknownURL); d != 0 {
 		t.Fatal("unknown URL should return zero backoff for slow response")
 	}
 }
 
 func TestRecordBadResponseUnknownURLCreatesEntry(t *testing.T) {
-	// A log URL that isn't in the init()-populated maps (e.g. a log added to the
+	// A log URL that isn't in the pre-populated maps (e.g. a log added to the
 	// list at runtime) should get a backoff entry created on first use, rather
 	// than being silently dropped.
+	m := New(&config.Config)
 	url := "https://newly-added-log.example.test/"
 
-	mutexBadResponse.Lock()
-	delete(backoffBadResponse, url)
-	mutexBadResponse.Unlock()
+	m.mutexBadResponse.Lock()
+	delete(m.backoffBadResponse, url)
+	m.mutexBadResponse.Unlock()
 
-	if !RecordBadResponse(url, fmt.Errorf("err")) {
+	if !m.RecordBadResponse(url, fmt.Errorf("err")) {
 		t.Fatal("RecordBadResponse should create an entry and return true for an unknown URL")
 	}
 
-	if d, _ := GetBadResponseBackoff(url); d <= 0 {
+	if d, _ := m.GetBadResponseBackoff(url); d <= 0 {
 		t.Fatal("expected positive backoff after RecordBadResponse created the entry")
 	}
 }
 
 func TestBackoffDoesNotExtendWithEarlierDeadline(t *testing.T) {
-	url := anyBackoffURL()
+	m := New(&config.Config)
+	url := anyBackoffURL(m)
 	if url == "" {
 		t.Skip("no log URLs in backoff maps")
 	}
 
 	// Set a backoff far in the future.
-	mutexBadResponse.Lock()
-	backoffBadResponse[url] = &backoffEntry{
+	m.mutexBadResponse.Lock()
+	m.backoffBadResponse[url] = &backoffEntry{
 		BackoffUntil:  time.Now().Add(1 * time.Hour),
 		BackoffPeriod: 1 * time.Hour,
 	}
-	mutexBadResponse.Unlock()
+	m.mutexBadResponse.Unlock()
 
-	d1, _ := GetBadResponseBackoff(url)
+	d1, _ := m.GetBadResponseBackoff(url)
 
 	// Record again — the default backoff period is shorter (1 minute),
 	// so the deadline should NOT be shortened.
-	RecordBadResponse(url, fmt.Errorf("err"))
+	m.RecordBadResponse(url, fmt.Errorf("err"))
 
-	d2, _ := GetBadResponseBackoff(url)
+	d2, _ := m.GetBadResponseBackoff(url)
 	if d2 < d1-time.Second {
 		t.Fatal("backoff deadline should not be shortened by a shorter period")
 	}

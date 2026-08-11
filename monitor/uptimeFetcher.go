@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/crtsh/ctsubmit/config"
 	"github.com/crtsh/ctsubmit/logger"
 
 	"github.com/crtsh/ctloglists"
@@ -36,20 +35,9 @@ type EndpointUptimes struct {
 	Tile              float64
 }
 
-var (
-	uptime24h = make(map[string]*EndpointUptimes)
-	mutex24h  sync.RWMutex
-	uptime90d = make(map[string]*EndpointUptimes)
-	mutex90d  sync.RWMutex
-	// Built lazily so importing this package does not read config at init time.
-	uptimeHTTPClient = sync.OnceValue(func() *http.Client {
-		return &http.Client{Timeout: config.Config.UptimeFetcher.HTTPTimeout}
-	})
-)
-
-func init() {
-	initializeUptimeMap(uptime24h)
-	initializeUptimeMap(uptime90d)
+func (m *Monitor) initUptimeMaps() {
+	initializeUptimeMap(m.uptime24h)
+	initializeUptimeMap(m.uptime90d)
 }
 
 func initializeUptimeMap(uptimeMap map[string]*EndpointUptimes) {
@@ -65,14 +53,14 @@ func initializeUptimeMap(uptimeMap map[string]*EndpointUptimes) {
 	}
 }
 
-func UptimeFetcher(ctx context.Context) {
+func (m *Monitor) UptimeFetcher(ctx context.Context) {
 	logger.Logger.Info("Started UptimeFetcher")
 
 	for {
 		select {
 		// Fetch endpoint uptime information from Google's log monitoring, then fire a timer when it's time to re-fetch.
-		case <-time.After(config.Config.UptimeFetcher.RefreshInterval):
-			FetchEndpointUptimes()
+		case <-time.After(m.cfg.UptimeFetcher.RefreshInterval):
+			m.FetchEndpointUptimes()
 		// Respond to graceful shutdown requests.
 		case <-ctx.Done():
 			logger.ShutdownWG.Done()
@@ -82,25 +70,25 @@ func UptimeFetcher(ctx context.Context) {
 	}
 }
 
-func FetchEndpointUptimes() {
+func (m *Monitor) FetchEndpointUptimes() {
 	var err error
 
-	if err = fetchEndpointUptimes(endpointUptime24hURL, uptime24h, &mutex24h); err != nil {
+	if err = m.fetchEndpointUptimes(endpointUptime24hURL, m.uptime24h, &m.mutex24h); err != nil {
 		logger.Logger.Warn("Failed to fetch 24h endpoint uptime", zap.Error(err))
 	}
 
-	if err = fetchEndpointUptimes(endpointUptime90dURL, uptime90d, &mutex90d); err != nil {
+	if err = m.fetchEndpointUptimes(endpointUptime90dURL, m.uptime90d, &m.mutex90d); err != nil {
 		logger.Logger.Warn("Failed to fetch 90d endpoint uptime", zap.Error(err))
 	}
 }
 
-func fetchEndpointUptimes(csvURL string, uptimeMap map[string]*EndpointUptimes, mutex *sync.RWMutex) error {
+func (m *Monitor) fetchEndpointUptimes(csvURL string, uptimeMap map[string]*EndpointUptimes, mutex *sync.RWMutex) error {
 	req, err := http.NewRequest(http.MethodGet, csvURL, nil)
 	if err != nil {
 		return err
 	}
 
-	resp, err := uptimeHTTPClient().Do(req)
+	resp, err := m.uptimeHTTPClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -199,14 +187,14 @@ func getEndpointUptime(endpointUptimes *EndpointUptimes, endpoint string) (float
 	}
 }
 
-func GetEndpointUptime24h(submissionURL, endpoint string) (float64, bool) {
-	mutex24h.RLock()
-	defer mutex24h.RUnlock()
-	return getEndpointUptime(uptime24h[submissionURL], endpoint)
+func (m *Monitor) GetEndpointUptime24h(submissionURL, endpoint string) (float64, bool) {
+	m.mutex24h.RLock()
+	defer m.mutex24h.RUnlock()
+	return getEndpointUptime(m.uptime24h[submissionURL], endpoint)
 }
 
-func GetEndpointUptime90d(submissionURL, endpoint string) (float64, bool) {
-	mutex90d.RLock()
-	defer mutex90d.RUnlock()
-	return getEndpointUptime(uptime90d[submissionURL], endpoint)
+func (m *Monitor) GetEndpointUptime90d(submissionURL, endpoint string) (float64, bool) {
+	m.mutex90d.RLock()
+	defer m.mutex90d.RUnlock()
+	return getEndpointUptime(m.uptime90d[submissionURL], endpoint)
 }

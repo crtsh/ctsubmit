@@ -5,10 +5,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync"
 	"time"
 
-	"github.com/crtsh/ctsubmit/config"
 	"github.com/crtsh/ctsubmit/logger"
 
 	"github.com/crtsh/ctloglists"
@@ -22,97 +20,84 @@ type backoffEntry struct {
 	StatusCode    int
 }
 
-var (
-	backoffBadResponse  = make(map[string]*backoffEntry)
-	mutexBadResponse    sync.RWMutex
-	backoffTimeout      = make(map[string]*backoffEntry)
-	mutexTimeout        sync.RWMutex
-	backoff5xx          = make(map[string]*backoffEntry)
-	mutex5xx            sync.RWMutex
-	backoff4xx          = make(map[string]*backoffEntry)
-	mutex4xx            sync.RWMutex
-	backoffSlowResponse = make(map[string]*backoffEntry)
-	mutexSlowResponse   sync.RWMutex
-)
-
-func init() {
+func (m *Monitor) initBackoffMaps() {
 	for _, operator := range ctloglists.CrtshV3Active.Operators {
 		for _, log := range operator.Logs {
 			submissionURL, _ := url.JoinPath(log.URL, "/")
-			backoffBadResponse[submissionURL] = &backoffEntry{}
-			backoffTimeout[submissionURL] = &backoffEntry{}
-			backoff5xx[submissionURL] = &backoffEntry{}
-			backoff4xx[submissionURL] = &backoffEntry{}
-			backoffSlowResponse[submissionURL] = &backoffEntry{}
+			m.backoffBadResponse[submissionURL] = &backoffEntry{}
+			m.backoffTimeout[submissionURL] = &backoffEntry{}
+			m.backoff5xx[submissionURL] = &backoffEntry{}
+			m.backoff4xx[submissionURL] = &backoffEntry{}
+			m.backoffSlowResponse[submissionURL] = &backoffEntry{}
 		}
 		for _, tiledLog := range operator.TiledLogs {
 			submissionURL, _ := url.JoinPath(tiledLog.SubmissionURL, "/")
-			backoffBadResponse[submissionURL] = &backoffEntry{}
-			backoffTimeout[submissionURL] = &backoffEntry{}
-			backoff5xx[submissionURL] = &backoffEntry{}
-			backoff4xx[submissionURL] = &backoffEntry{}
-			backoffSlowResponse[submissionURL] = &backoffEntry{}
+			m.backoffBadResponse[submissionURL] = &backoffEntry{}
+			m.backoffTimeout[submissionURL] = &backoffEntry{}
+			m.backoff5xx[submissionURL] = &backoffEntry{}
+			m.backoff4xx[submissionURL] = &backoffEntry{}
+			m.backoffSlowResponse[submissionURL] = &backoffEntry{}
 		}
 	}
 }
 
-func RecordBadResponse(submissionURL string, err error) bool {
+func (m *Monitor) RecordBadResponse(submissionURL string, err error) bool {
 	logger.Logger.Warn("Bad response", zap.String("url", submissionURL), zap.Error(err))
 
-	mutexBadResponse.Lock()
-	defer mutexBadResponse.Unlock()
+	m.mutexBadResponse.Lock()
+	defer m.mutexBadResponse.Unlock()
 
-	boBad, ok := backoffBadResponse[submissionURL]
+	boBad, ok := m.backoffBadResponse[submissionURL]
 	if !ok {
 		boBad = &backoffEntry{}
-		backoffBadResponse[submissionURL] = boBad
+		m.backoffBadResponse[submissionURL] = boBad
 	}
 
-	backoffUntil := time.Now().Add(config.Config.Strategy.Backoff.BadResponsePeriod)
+	backoffUntil := time.Now().Add(m.cfg.Strategy.Backoff.BadResponsePeriod)
 	if boBad.BackoffUntil.Before(backoffUntil) {
 		boBad.BackoffUntil = backoffUntil
-		boBad.BackoffPeriod = config.Config.Strategy.Backoff.BadResponsePeriod
+		boBad.BackoffPeriod = m.cfg.Strategy.Backoff.BadResponsePeriod
 	}
 
 	return true
 }
 
-func RecordTimeout(submissionURL string, err error) bool {
+func (m *Monitor) RecordTimeout(submissionURL string, err error) bool {
 	logger.Logger.Warn("Connection timeout", zap.String("url", submissionURL), zap.Error(err))
 
-	mutexTimeout.Lock()
-	defer mutexTimeout.Unlock()
+	m.mutexTimeout.Lock()
+	defer m.mutexTimeout.Unlock()
 
-	boTimeout, ok := backoffTimeout[submissionURL]
+	boTimeout, ok := m.backoffTimeout[submissionURL]
 	if !ok {
 		boTimeout = &backoffEntry{}
-		backoffTimeout[submissionURL] = boTimeout
+		m.backoffTimeout[submissionURL] = boTimeout
 	}
 
-	backoffUntil := time.Now().Add(config.Config.Strategy.Backoff.TimeoutPeriod)
+	backoffUntil := time.Now().Add(m.cfg.Strategy.Backoff.TimeoutPeriod)
 	if boTimeout.BackoffUntil.Before(backoffUntil) {
 		boTimeout.BackoffUntil = backoffUntil
-		boTimeout.BackoffPeriod = config.Config.Strategy.Backoff.TimeoutPeriod
+		boTimeout.BackoffPeriod = m.cfg.Strategy.Backoff.TimeoutPeriod
 	}
 
 	return true
 }
 
-func Record5xxResponse(submissionURL string, httpResponse *http.Response) bool {
+func (m *Monitor) Record5xxResponse(submissionURL string, httpResponse *http.Response) bool {
 	logger.Logger.Warn("HTTP server error", zap.Int("status_code", httpResponse.StatusCode), zap.String("url", submissionURL))
 
-	backoffDuration := config.Config.Strategy.Backoff.Default5xxPeriod
+	backoffDuration := m.cfg.Strategy.Backoff.Default5xxPeriod
 	if retryAfter := parseRetryAfter(httpResponse); retryAfter > 0 {
 		backoffDuration = retryAfter
 	}
 
-	mutex5xx.Lock()
-	defer mutex5xx.Unlock()
+	m.mutex5xx.Lock()
+	defer m.mutex5xx.Unlock()
 
-	bo5xx, ok := backoff5xx[submissionURL]
+	bo5xx, ok := m.backoff5xx[submissionURL]
 	if !ok {
 		bo5xx = &backoffEntry{}
-		backoff5xx[submissionURL] = bo5xx
+		m.backoff5xx[submissionURL] = bo5xx
 	}
 
 	backoffUntil := time.Now().Add(backoffDuration)
@@ -125,21 +110,21 @@ func Record5xxResponse(submissionURL string, httpResponse *http.Response) bool {
 	return true
 }
 
-func Record4xxResponse(submissionURL string, httpResponse *http.Response) bool {
+func (m *Monitor) Record4xxResponse(submissionURL string, httpResponse *http.Response) bool {
 	logger.Logger.Warn("HTTP client error", zap.Int("status_code", httpResponse.StatusCode), zap.String("url", submissionURL))
 
-	backoffDuration := config.Config.Strategy.Backoff.Default4xxPeriod
+	backoffDuration := m.cfg.Strategy.Backoff.Default4xxPeriod
 	if retryAfter := parseRetryAfter(httpResponse); retryAfter > 0 {
 		backoffDuration = retryAfter
 	}
 
-	mutex4xx.Lock()
-	defer mutex4xx.Unlock()
+	m.mutex4xx.Lock()
+	defer m.mutex4xx.Unlock()
 
-	bo4xx, ok := backoff4xx[submissionURL]
+	bo4xx, ok := m.backoff4xx[submissionURL]
 	if !ok {
 		bo4xx = &backoffEntry{}
-		backoff4xx[submissionURL] = bo4xx
+		m.backoff4xx[submissionURL] = bo4xx
 	}
 
 	backoffUntil := time.Now().Add(backoffDuration)
@@ -152,31 +137,31 @@ func Record4xxResponse(submissionURL string, httpResponse *http.Response) bool {
 	return true
 }
 
-func RecordSlowResponse(submissionURL string) bool {
+func (m *Monitor) RecordSlowResponse(submissionURL string) bool {
 	logger.Logger.Warn("Slow response", zap.String("url", submissionURL))
 
-	mutexSlowResponse.Lock()
-	defer mutexSlowResponse.Unlock()
+	m.mutexSlowResponse.Lock()
+	defer m.mutexSlowResponse.Unlock()
 
-	boSlow, ok := backoffSlowResponse[submissionURL]
+	boSlow, ok := m.backoffSlowResponse[submissionURL]
 	if !ok {
 		boSlow = &backoffEntry{}
-		backoffSlowResponse[submissionURL] = boSlow
+		m.backoffSlowResponse[submissionURL] = boSlow
 	}
 
-	backoffUntil := time.Now().Add(config.Config.Strategy.Backoff.SlowResponsePeriod)
+	backoffUntil := time.Now().Add(m.cfg.Strategy.Backoff.SlowResponsePeriod)
 	if boSlow.BackoffUntil.Before(backoffUntil) {
 		boSlow.BackoffUntil = backoffUntil
-		boSlow.BackoffPeriod = config.Config.Strategy.Backoff.SlowResponsePeriod
+		boSlow.BackoffPeriod = m.cfg.Strategy.Backoff.SlowResponsePeriod
 	}
 	return true
 }
 
-func GetBadResponseBackoff(submissionURL string) (time.Duration, string) {
-	mutexBadResponse.RLock()
-	defer mutexBadResponse.RUnlock()
+func (m *Monitor) GetBadResponseBackoff(submissionURL string) (time.Duration, string) {
+	m.mutexBadResponse.RLock()
+	defer m.mutexBadResponse.RUnlock()
 
-	boBad, ok := backoffBadResponse[submissionURL]
+	boBad, ok := m.backoffBadResponse[submissionURL]
 	if !ok || time.Now().After(boBad.BackoffUntil) {
 		return 0, ""
 	}
@@ -184,11 +169,11 @@ func GetBadResponseBackoff(submissionURL string) (time.Duration, string) {
 	return time.Until(boBad.BackoffUntil), fmt.Sprintf("Backoff until %s due to recent bad response", boBad.BackoffUntil.Format(time.RFC1123))
 }
 
-func GetTimeoutBackoff(submissionURL string) (time.Duration, string) {
-	mutexTimeout.RLock()
-	defer mutexTimeout.RUnlock()
+func (m *Monitor) GetTimeoutBackoff(submissionURL string) (time.Duration, string) {
+	m.mutexTimeout.RLock()
+	defer m.mutexTimeout.RUnlock()
 
-	boTimeout, ok := backoffTimeout[submissionURL]
+	boTimeout, ok := m.backoffTimeout[submissionURL]
 	if !ok || time.Now().After(boTimeout.BackoffUntil) {
 		return 0, ""
 	}
@@ -196,11 +181,11 @@ func GetTimeoutBackoff(submissionURL string) (time.Duration, string) {
 	return time.Until(boTimeout.BackoffUntil), fmt.Sprintf("Backoff until %s due to recent timeout", boTimeout.BackoffUntil.Format(time.RFC1123))
 }
 
-func Get5xxBackoff(submissionURL string) (time.Duration, string, int) {
-	mutex5xx.RLock()
-	defer mutex5xx.RUnlock()
+func (m *Monitor) Get5xxBackoff(submissionURL string) (time.Duration, string, int) {
+	m.mutex5xx.RLock()
+	defer m.mutex5xx.RUnlock()
 
-	bo5xx, ok := backoff5xx[submissionURL]
+	bo5xx, ok := m.backoff5xx[submissionURL]
 	if !ok || time.Now().After(bo5xx.BackoffUntil) {
 		return 0, "", 0
 	}
@@ -208,11 +193,11 @@ func Get5xxBackoff(submissionURL string) (time.Duration, string, int) {
 	return time.Until(bo5xx.BackoffUntil), fmt.Sprintf("Backoff until %s due to HTTP %d", bo5xx.BackoffUntil.Format(time.RFC1123), bo5xx.StatusCode), bo5xx.StatusCode
 }
 
-func Get4xxBackoff(submissionURL string) (time.Duration, string, int) {
-	mutex4xx.RLock()
-	defer mutex4xx.RUnlock()
+func (m *Monitor) Get4xxBackoff(submissionURL string) (time.Duration, string, int) {
+	m.mutex4xx.RLock()
+	defer m.mutex4xx.RUnlock()
 
-	bo4xx, ok := backoff4xx[submissionURL]
+	bo4xx, ok := m.backoff4xx[submissionURL]
 	if !ok || time.Now().After(bo4xx.BackoffUntil) {
 		return 0, "", 0
 	}
@@ -220,11 +205,11 @@ func Get4xxBackoff(submissionURL string) (time.Duration, string, int) {
 	return time.Until(bo4xx.BackoffUntil), fmt.Sprintf("Backoff until %s due to HTTP %d", bo4xx.BackoffUntil.Format(time.RFC1123), bo4xx.StatusCode), bo4xx.StatusCode
 }
 
-func GetSlowResponseBackoff(submissionURL string) (time.Duration, string) {
-	mutexSlowResponse.RLock()
-	defer mutexSlowResponse.RUnlock()
+func (m *Monitor) GetSlowResponseBackoff(submissionURL string) (time.Duration, string) {
+	m.mutexSlowResponse.RLock()
+	defer m.mutexSlowResponse.RUnlock()
 
-	boSlow, ok := backoffSlowResponse[submissionURL]
+	boSlow, ok := m.backoffSlowResponse[submissionURL]
 	if !ok || time.Now().After(boSlow.BackoffUntil) {
 		return 0, ""
 	}

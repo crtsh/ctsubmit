@@ -9,6 +9,7 @@ import (
 	"github.com/crtsh/ctsubmit/endpoint"
 	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/loglists"
+	"github.com/crtsh/ctsubmit/monitor"
 	"github.com/crtsh/ctsubmit/request"
 	"github.com/crtsh/ctsubmit/submitter"
 	"github.com/crtsh/ctsubmit/utils"
@@ -22,7 +23,7 @@ import (
 var webServer *fasthttp.Server
 var webRequestLatency prometheus.Summary
 
-func webHandler(fhctx *fasthttp.RequestCtx, sub *submitter.Submitter) {
+func webHandler(fhctx *fasthttp.RequestCtx, sub *submitter.Submitter, mon *monitor.Monitor) {
 	endpointPath := strings.ToLower(utils.B2S(fhctx.Path())[1:])
 
 	if fhctx.IsGet() {
@@ -30,7 +31,7 @@ func webHandler(fhctx *fasthttp.RequestCtx, sub *submitter.Submitter) {
 		case endpoint.ENDPOINTSTRING_CSS:
 			request.CSS(fhctx)
 		case endpoint.ENDPOINTSTRING_DASHBOARD:
-			request.Dashboard(fhctx)
+			request.Dashboard(fhctx, mon)
 		case endpoint.ENDPOINTSTRING_FAVICON:
 			favicon(fhctx)
 		case endpoint.ENDPOINTSTRING_FRONTPAGE:
@@ -73,13 +74,13 @@ func webHandler(fhctx *fasthttp.RequestCtx, sub *submitter.Submitter) {
 var monitoringServer *fasthttp.Server
 var monitoringRequestLatency prometheus.Summary
 
-func monitoringHandler(fhctx *fasthttp.RequestCtx) {
+func monitoringHandler(fhctx *fasthttp.RequestCtx, mon *monitor.Monitor) {
 	status := 0
 	switch strings.ToLower(utils.B2S(fhctx.Path())[1:]) {
 	case endpoint.ENDPOINTSTRING_CSS:
 		request.CSS(fhctx)
 	case endpoint.ENDPOINTSTRING_DASHBOARD:
-		request.Dashboard(fhctx)
+		request.Dashboard(fhctx, mon)
 	case endpoint.ENDPOINTSTRING_FAVICON:
 		favicon(fhctx)
 	case endpoint.ENDPOINTSTRING_MASCOT:
@@ -124,9 +125,9 @@ func monitoringHandler(fhctx *fasthttp.RequestCtx) {
 	monitoringRequestLatency.Observe(float64(time.Since(fhctx.Time())) / float64(time.Second))
 }
 
-func Run(sub *submitter.Submitter) {
+func Run(sub *submitter.Submitter, mon *monitor.Monitor) {
 	webServer = &fasthttp.Server{
-		Handler:               func(fhctx *fasthttp.RequestCtx) { webHandler(fhctx, sub) },
+		Handler:               func(fhctx *fasthttp.RequestCtx) { webHandler(fhctx, sub, mon) },
 		CloseOnShutdown:       true,
 		ReadTimeout:           config.Config.Server.ReadTimeout,
 		IdleTimeout:           config.Config.Server.IdleTimeout,
@@ -151,7 +152,7 @@ func Run(sub *submitter.Submitter) {
 	}
 
 	monitoringServer = &fasthttp.Server{
-		Handler:               monitoringHandler,
+		Handler:               func(fhctx *fasthttp.RequestCtx) { monitoringHandler(fhctx, mon) },
 		CloseOnShutdown:       true,
 		ReadTimeout:           config.Config.Server.ReadTimeout,
 		IdleTimeout:           config.Config.Server.IdleTimeout,

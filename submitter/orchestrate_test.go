@@ -9,6 +9,7 @@ import (
 
 	"github.com/crtsh/ctsubmit/config"
 	"github.com/crtsh/ctsubmit/logger"
+	"github.com/crtsh/ctsubmit/monitor"
 
 	ctgo "github.com/google/certificate-transparency-go"
 )
@@ -21,7 +22,7 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func TestSubmitPropagatesContextCancellationToLogRequest(t *testing.T) {
 	requestCancelled := make(chan struct{})
-	s := New(&config.Config, logger.Logger)
+	s := New(&config.Config, logger.Logger, monitor.New(&config.Config))
 	s.client = &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			<-req.Context().Done()

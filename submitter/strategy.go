@@ -86,37 +86,37 @@ func (s *Submitter) devizeSubmissionStrategy(compatibleLogList *loglist3.LogList
 
 		// Disprefer logs with STH ages that exceed the MMD.
 		if strategy[i].Bucket == NEUTRAL {
-			strategy[i].dispreferIfMMDBlown()
+			strategy[i].dispreferIfMMDBlown(s.mon)
 		}
 
 		// Disprefer logs with endpoint uptimes below configurable thresholds.
 		if strategy[i].Bucket == NEUTRAL {
-			strategy[i].dispreferIfLowUptime(entryType)
+			strategy[i].dispreferIfLowUptime(entryType, s.mon)
 		}
 
 		// Disprefer logs from which we've received a bad response recently.
 		if strategy[i].Bucket == NEUTRAL {
-			strategy[i].dispreferIfBadResponseBackoff()
+			strategy[i].dispreferIfBadResponseBackoff(s.mon)
 		}
 
 		// Disprefer logs for which a request recently timed out.
 		if strategy[i].Bucket == NEUTRAL {
-			strategy[i].dispreferIfTimeoutBackoff()
+			strategy[i].dispreferIfTimeoutBackoff(s.mon)
 		}
 
 		// Disprefer logs from which we've received a 5xx response recently (as defined by Retry-After if received, or else by the configurable back-off period).
 		if strategy[i].Bucket == NEUTRAL {
-			strategy[i].dispreferIf5xxBackoff()
+			strategy[i].dispreferIf5xxBackoff(s.mon)
 		}
 
 		// Disprefer logs from which we've received a 4xx response recently (as defined by Retry-After if received, or else by the configurable back-off period).
 		if strategy[i].Bucket == NEUTRAL {
-			strategy[i].dispreferIf4xxBackoff()
+			strategy[i].dispreferIf4xxBackoff(s.mon)
 		}
 
 		// Disprefer logs for which we've recently observed slow responses.
 		if strategy[i].Bucket == NEUTRAL {
-			strategy[i].dispreferIfSlowResponseBackoff()
+			strategy[i].dispreferIfSlowResponseBackoff(s.mon)
 		}
 
 		// Apply log preference config.
@@ -149,8 +149,8 @@ func (sm *StrategyMember) applyLogExclusionConfig(submissionURL string, regexes 
 	}
 }
 
-func (sm *StrategyMember) dispreferIfMMDBlown() {
-	sd, ok := monitor.GetSTHData(sm.MonitoringURL)
+func (sm *StrategyMember) dispreferIfMMDBlown(mon *monitor.Monitor) {
+	sd, ok := mon.GetSTHData(sm.MonitoringURL)
 	if !ok {
 		sm.Bucket = EXCLUDED
 		sm.Outcome = "No STH timestamp available"
@@ -166,13 +166,13 @@ func (sm *StrategyMember) dispreferIfMMDBlown() {
 	}
 }
 
-func (sm *StrategyMember) dispreferIfLowUptime(entryType ctgo.LogEntryType) {
+func (sm *StrategyMember) dispreferIfLowUptime(entryType ctgo.LogEntryType, mon *monitor.Monitor) {
 	var endpointUptime float64
 	var ok bool
 	if entryType == ctgo.PrecertLogEntryType {
-		endpointUptime, ok = monitor.GetEndpointUptime24h(sm.SubmissionURL, "add-pre-chain")
+		endpointUptime, ok = mon.GetEndpointUptime24h(sm.SubmissionURL, "add-pre-chain")
 	} else {
-		endpointUptime, ok = monitor.GetEndpointUptime24h(sm.SubmissionURL, "add-chain")
+		endpointUptime, ok = mon.GetEndpointUptime24h(sm.SubmissionURL, "add-chain")
 	}
 
 	if ok && endpointUptime < config.Config.Strategy.UptimeThreshold.SubmitEndpoint24h {
@@ -180,47 +180,47 @@ func (sm *StrategyMember) dispreferIfLowUptime(entryType ctgo.LogEntryType) {
 		sm.DispreferredDetail = fmt.Sprintf("Submission endpoint 24h uptime below threshold (%.4f%% < %.4f%%)", endpointUptime, config.Config.Strategy.UptimeThreshold.SubmitEndpoint24h)
 	}
 
-	endpointUptime, ok = monitor.GetEndpointUptime90d(sm.SubmissionURL, "LOWEST")
+	endpointUptime, ok = mon.GetEndpointUptime90d(sm.SubmissionURL, "LOWEST")
 	if ok && endpointUptime < config.Config.Strategy.UptimeThreshold.LowestEndpoint90d {
 		sm.Bucket = DISPREFERRED_LOWUPTIME
 		sm.DispreferredDetail = fmt.Sprintf("Lowest endpoint 90d uptime below threshold (%.4f%% < %.4f%%)", endpointUptime, config.Config.Strategy.UptimeThreshold.LowestEndpoint90d)
 	}
 }
 
-func (sm *StrategyMember) dispreferIfBadResponseBackoff() {
-	backoffDuration, reason := monitor.GetBadResponseBackoff(sm.SubmissionURL)
+func (sm *StrategyMember) dispreferIfBadResponseBackoff(mon *monitor.Monitor) {
+	backoffDuration, reason := mon.GetBadResponseBackoff(sm.SubmissionURL)
 	if backoffDuration > 0 {
 		sm.Bucket = DISPREFERRED_RECENTBADRESPONSE
 		sm.DispreferredDetail = reason
 	}
 }
 
-func (sm *StrategyMember) dispreferIfTimeoutBackoff() {
-	backoffDuration, reason := monitor.GetTimeoutBackoff(sm.SubmissionURL)
+func (sm *StrategyMember) dispreferIfTimeoutBackoff(mon *monitor.Monitor) {
+	backoffDuration, reason := mon.GetTimeoutBackoff(sm.SubmissionURL)
 	if backoffDuration > 0 {
 		sm.Bucket = DISPREFERRED_RECENTTIMEOUT
 		sm.DispreferredDetail = reason
 	}
 }
 
-func (sm *StrategyMember) dispreferIf5xxBackoff() {
-	backoffDuration, reason, _ := monitor.Get5xxBackoff(sm.SubmissionURL)
+func (sm *StrategyMember) dispreferIf5xxBackoff(mon *monitor.Monitor) {
+	backoffDuration, reason, _ := mon.Get5xxBackoff(sm.SubmissionURL)
 	if backoffDuration > 0 {
 		sm.Bucket = DISPREFERRED_RECENT5XX
 		sm.DispreferredDetail = reason
 	}
 }
 
-func (sm *StrategyMember) dispreferIf4xxBackoff() {
-	backoffDuration, reason, _ := monitor.Get4xxBackoff(sm.SubmissionURL)
+func (sm *StrategyMember) dispreferIf4xxBackoff(mon *monitor.Monitor) {
+	backoffDuration, reason, _ := mon.Get4xxBackoff(sm.SubmissionURL)
 	if backoffDuration > 0 {
 		sm.Bucket = DISPREFERRED_RECENT4XX
 		sm.DispreferredDetail = reason
 	}
 }
 
-func (sm *StrategyMember) dispreferIfSlowResponseBackoff() {
-	backoffDuration, reason := monitor.GetSlowResponseBackoff(sm.SubmissionURL)
+func (sm *StrategyMember) dispreferIfSlowResponseBackoff(mon *monitor.Monitor) {
+	backoffDuration, reason := mon.GetSlowResponseBackoff(sm.SubmissionURL)
 	if backoffDuration > 0 {
 		sm.Bucket = DISPREFERRED_SLOWRESPONSES
 		sm.DispreferredDetail = reason

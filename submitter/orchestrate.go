@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/crtsh/ctsubmit/logger"
-	"github.com/crtsh/ctsubmit/monitor"
 
 	json "github.com/goccy/go-json"
 	ctgo "github.com/google/certificate-transparency-go"
@@ -247,7 +246,7 @@ func (s *Submitter) submit(ctx context.Context, sr *SubmissionRequest, strategy 
 			startNextEligible()
 
 		case eventSlow:
-			monitor.RecordSlowResponse(strategy[event.strategyIdx].SubmissionURL)
+			s.mon.RecordSlowResponse(strategy[event.strategyIdx].SubmissionURL)
 			logger.Logger.Warn("Slow response threshold exceeded", zap.Int("strategyIdx", event.strategyIdx), zap.String("url", strategy[event.strategyIdx].SubmissionURL), zap.String("operator", strategy[event.strategyIdx].Operator))
 		}
 	}

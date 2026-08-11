@@ -8,10 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/crtsh/ctsubmit/config"
 	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/utils"
 
@@ -37,16 +35,7 @@ type STHData struct {
 	LastFetched   *time.Time
 }
 
-var (
-	sthData  = make(map[string]*STHData)
-	sthMutex sync.RWMutex
-	// Built lazily so importing this package does not read config at init time.
-	sthHTTPClient = sync.OnceValue(func() *http.Client {
-		return &http.Client{Timeout: config.Config.STHMonitor.HTTPTimeout}
-	})
-)
-
-func init() {
+func (m *Monitor) initSTHData() {
 	for _, operator := range ctloglists.CrtshV3Active.Operators {
 		for _, log := range operator.Logs {
 			pubKey, err := x509.ParsePKIXPublicKey(log.Key)
@@ -61,7 +50,7 @@ func init() {
 			}
 
 			logURL, _ := url.JoinPath(log.URL, "/")
-			sthData[logURL] = &STHData{IsRFC6962Log: true, SigVerifier: sigVerifier, SubmissionURL: logURL}
+			m.sthData[logURL] = &STHData{IsRFC6962Log: true, SigVerifier: sigVerifier, SubmissionURL: logURL}
 		}
 
 		for _, tiledLog := range operator.TiledLogs {
@@ -81,18 +70,18 @@ func init() {
 				continue
 			}
 
-			sthData[monitoringURL] = &STHData{KeyName: keyName, NoteVerifiers: note.VerifierList(verifier), SubmissionURL: submissionURL}
+			m.sthData[monitoringURL] = &STHData{KeyName: keyName, NoteVerifiers: note.VerifierList(verifier), SubmissionURL: submissionURL}
 		}
 	}
 }
 
-func STHMonitor(ctx context.Context) {
+func (m *Monitor) STHMonitor(ctx context.Context) {
 	logger.Logger.Info("Started STHMonitor")
 
 	for {
 		select {
-		case <-time.After(config.Config.STHMonitor.RefreshInterval):
-			FetchAllSTHs()
+		case <-time.After(m.cfg.STHMonitor.RefreshInterval):
+			m.FetchAllSTHs()
 		case <-ctx.Done():
 			logger.ShutdownWG.Done()
 			logger.Logger.Info("Stopped STHMonitor")
@@ -101,18 +90,18 @@ func STHMonitor(ctx context.Context) {
 	}
 }
 
-func FetchAllSTHs() {
-	for url, sd := range sthData {
+func (m *Monitor) FetchAllSTHs() {
+	for url, sd := range m.sthData {
 		if sd.IsRFC6962Log {
-			go fetchSTH(url, sd)
+			go m.fetchSTH(url, sd)
 		} else {
-			go fetchCheckpoint(sd.SubmissionURL, url, sd)
+			go m.fetchCheckpoint(sd.SubmissionURL, url, sd)
 		}
 	}
 }
 
-func fetchSTH(logURL string, sd *STHData) {
-	body := fetchResource(logURL, logURL+"ct/v1/get-sth")
+func (m *Monitor) fetchSTH(logURL string, sd *STHData) {
+	body := m.fetchResource(logURL, logURL+"ct/v1/get-sth")
 	if body == nil {
 		return
 	}
@@ -120,23 +109,23 @@ func fetchSTH(logURL string, sd *STHData) {
 	var sthResponse ctgo.GetSTHResponse
 	var err error
 	if err = json.Unmarshal(body, &sthResponse); err != nil {
-		RecordBadResponse(sd.SubmissionURL, err)
+		m.RecordBadResponse(sd.SubmissionURL, err)
 		return
 	}
 
 	var sth *ctgo.SignedTreeHead
 	if sth, err = sthResponse.ToSignedTreeHead(); err != nil {
-		RecordBadResponse(sd.SubmissionURL, err)
+		m.RecordBadResponse(sd.SubmissionURL, err)
 		return
 	}
 
 	sthTimestamp := time.UnixMilli(int64(sthResponse.Timestamp))
 
-	sthMutex.Lock()
-	defer sthMutex.Unlock()
+	m.sthMutex.Lock()
+	defer m.sthMutex.Unlock()
 
 	if err = sd.SigVerifier.VerifySTHSignature(*sth); err != nil {
-		RecordBadResponse(sd.SubmissionURL, err)
+		m.RecordBadResponse(sd.SubmissionURL, err)
 		return
 	}
 
@@ -151,38 +140,38 @@ func fetchSTH(logURL string, sd *STHData) {
 	logger.Logger.Debug("Fetched STH", zap.String("url", logURL), zap.Uint64("tree_size", sthResponse.TreeSize), zap.Duration("age", time.Since(*sd.Timestamp)))
 }
 
-func fetchCheckpoint(submissionURL, monitoringURL string, sd *STHData) {
-	body := fetchResource(submissionURL, monitoringURL+"checkpoint")
+func (m *Monitor) fetchCheckpoint(submissionURL, monitoringURL string, sd *STHData) {
+	body := m.fetchResource(submissionURL, monitoringURL+"checkpoint")
 	if body == nil {
 		return
 	}
 
-	sthMutex.Lock()
-	defer sthMutex.Unlock()
+	m.sthMutex.Lock()
+	defer m.sthMutex.Unlock()
 
 	n, err := note.Open(body, sd.NoteVerifiers)
 	if err != nil {
-		RecordBadResponse(sd.SubmissionURL, err)
+		m.RecordBadResponse(sd.SubmissionURL, err)
 		return
 	}
 	if len(n.Sigs) < 1 {
-		RecordBadResponse(sd.SubmissionURL, fmt.Errorf("checkpoint note had no verified signatures"))
+		m.RecordBadResponse(sd.SubmissionURL, fmt.Errorf("checkpoint note had no verified signatures"))
 		return
 	}
 
 	checkpoint, err := sunlight.ParseCheckpoint(n.Text)
 	if err != nil {
-		RecordBadResponse(sd.SubmissionURL, err)
+		m.RecordBadResponse(sd.SubmissionURL, err)
 		return
 	}
 	if checkpoint.Origin != sd.KeyName {
-		RecordBadResponse(sd.SubmissionURL, fmt.Errorf("unexpected checkpoint origin: %s", checkpoint.Origin))
+		m.RecordBadResponse(sd.SubmissionURL, fmt.Errorf("unexpected checkpoint origin: %s", checkpoint.Origin))
 		return
 	}
 
 	timestampMillis, err := sunlight.RFC6962SignatureTimestamp(n.Sigs[0])
 	if err != nil {
-		RecordBadResponse(sd.SubmissionURL, err)
+		m.RecordBadResponse(sd.SubmissionURL, err)
 		return
 	}
 
@@ -197,7 +186,7 @@ func fetchCheckpoint(submissionURL, monitoringURL string, sd *STHData) {
 	logger.Logger.Debug("Fetched checkpoint", zap.String("url", monitoringURL), zap.Uint64("tree_size", sd.TreeSize), zap.Duration("age", time.Since(*sd.Timestamp)))
 }
 
-func fetchResource(submissionURL, endpointURL string) []byte {
+func (m *Monitor) fetchResource(submissionURL, endpointURL string) []byte {
 	req, err := http.NewRequest(http.MethodGet, endpointURL, nil)
 	if err != nil {
 		logger.Logger.Error("Failed to create HTTP request", zap.String("url", endpointURL), zap.Error(err))
@@ -206,12 +195,12 @@ func fetchResource(submissionURL, endpointURL string) []byte {
 
 	req.Header.Set("User-Agent", "github.com/crtsh/ctsubmit")
 
-	resp, err := sthHTTPClient().Do(req)
+	resp, err := m.sthHTTPClient.Do(req)
 	if err != nil {
 		if utils.IsTimeoutError(err) {
-			RecordTimeout(submissionURL, err)
+			m.RecordTimeout(submissionURL, err)
 		} else {
-			RecordBadResponse(submissionURL, err)
+			m.RecordBadResponse(submissionURL, err)
 		}
 		return nil
 	}
@@ -219,29 +208,29 @@ func fetchResource(submissionURL, endpointURL string) []byte {
 
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode >= 500 && resp.StatusCode < 600 {
-			Record5xxResponse(submissionURL, resp)
+			m.Record5xxResponse(submissionURL, resp)
 		} else if resp.StatusCode >= 400 && resp.StatusCode < 500 {
-			Record4xxResponse(submissionURL, resp)
+			m.Record4xxResponse(submissionURL, resp)
 		} else {
-			RecordBadResponse(submissionURL, fmt.Errorf("unexpected HTTP status: %d", resp.StatusCode))
+			m.RecordBadResponse(submissionURL, fmt.Errorf("unexpected HTTP status: %d", resp.StatusCode))
 		}
 		return nil
 	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		RecordBadResponse(submissionURL, err)
+		m.RecordBadResponse(submissionURL, err)
 		return nil
 	}
 
 	return body
 }
 
-func GetSTHData(logURL string) (*STHData, bool) {
-	sthMutex.RLock()
-	defer sthMutex.RUnlock()
+func (m *Monitor) GetSTHData(logURL string) (*STHData, bool) {
+	m.sthMutex.RLock()
+	defer m.sthMutex.RUnlock()
 
-	sd, ok := sthData[logURL]
+	sd, ok := m.sthData[logURL]
 	if !ok {
 		return nil, false
 	}
