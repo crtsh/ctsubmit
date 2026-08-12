@@ -17,12 +17,13 @@ func newMonitoringGetCtx(path string) *fasthttp.RequestCtx {
 }
 
 func TestDebugEndpointsReturn404WhenDisabled(t *testing.T) {
-	config.Config.Server.EnableDebugEndpoints = false
-	mon := monitor.New(&config.Config)
+	cfg := config.MustLoad()
+	cfg.Server.EnableDebugEndpoints = false
+	mon := monitor.New(cfg)
 
 	for _, path := range []string{"/debug/build", "/debug/config", "/debug/pprof/", "/debug/pprof/heap"} {
 		ctx := newMonitoringGetCtx(path)
-		monitoringHandler(ctx, &config.Config, mon)
+		monitoringHandler(ctx, cfg, mon)
 		if got := ctx.Response.StatusCode(); got != fasthttp.StatusNotFound {
 			t.Errorf("path %s: expected 404 when debug endpoints disabled, got %d", path, got)
 		}
@@ -30,13 +31,13 @@ func TestDebugEndpointsReturn404WhenDisabled(t *testing.T) {
 }
 
 func TestDebugEndpointsServedWhenEnabled(t *testing.T) {
-	config.Config.Server.EnableDebugEndpoints = true
-	defer func() { config.Config.Server.EnableDebugEndpoints = false }()
-	mon := monitor.New(&config.Config)
+	cfg := config.MustLoad()
+	cfg.Server.EnableDebugEndpoints = true
+	mon := monitor.New(cfg)
 
 	for _, path := range []string{"/debug/build", "/debug/config"} {
 		ctx := newMonitoringGetCtx(path)
-		monitoringHandler(ctx, &config.Config, mon)
+		monitoringHandler(ctx, cfg, mon)
 		if got := ctx.Response.StatusCode(); got != fasthttp.StatusOK {
 			t.Errorf("path %s: expected 200 when debug endpoints enabled, got %d", path, got)
 		}

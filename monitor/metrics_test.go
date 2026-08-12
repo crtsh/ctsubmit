@@ -8,7 +8,7 @@ import (
 )
 
 func TestRecentOutcomeCounts(t *testing.T) {
-	m := New(&config.Config)
+	m := New(config.MustLoad())
 	url := "https://outcome-counts.example.test/"
 
 	m.RecordSubmissionOutcome(url, "success")
@@ -25,7 +25,7 @@ func TestRecentOutcomeCounts(t *testing.T) {
 }
 
 func TestRecentOutcomeCountsUnknownURL(t *testing.T) {
-	m := New(&config.Config)
+	m := New(config.MustLoad())
 	successes, failures := m.GetRecentOutcomeCounts("https://never-recorded.example.test/")
 	if successes != 0 || failures != 0 {
 		t.Fatalf("unknown URL: got (%d, %d), want (0, 0)", successes, failures)
@@ -33,7 +33,7 @@ func TestRecentOutcomeCountsUnknownURL(t *testing.T) {
 }
 
 func TestAvgResponseTime(t *testing.T) {
-	m := New(&config.Config)
+	m := New(config.MustLoad())
 	url := "https://avg-response.example.test/"
 
 	if _, ok := m.GetAvgResponseTime(url); ok {

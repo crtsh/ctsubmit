@@ -22,12 +22,12 @@ func TestIsReadyRequiresInitialData(t *testing.T) {
 	resetHealth()
 	ctx := &fasthttp.RequestCtx{}
 
-	if IsReady(ctx, &config.Config) {
+	if IsReady(ctx, config.MustLoad()) {
 		t.Fatal("expected not ready before initial data is loaded")
 	}
 
 	SetInitialDataReady()
-	if !IsReady(ctx, &config.Config) {
+	if !IsReady(ctx, config.MustLoad()) {
 		t.Fatal("expected ready after initial data is loaded with no recent busy")
 	}
 }
@@ -40,7 +40,7 @@ func TestIsReadyReflectsRecentBusy(t *testing.T) {
 	UpdateLatestTimestamps(nil, nil, &now)
 
 	ctx := &fasthttp.RequestCtx{}
-	if IsReady(ctx, &config.Config) {
+	if IsReady(ctx, config.MustLoad()) {
 		t.Fatal("expected not ready immediately after a busy timestamp")
 	}
 }

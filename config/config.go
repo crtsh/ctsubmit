@@ -94,7 +94,6 @@ const (
 var (
 	ApplicationName       string
 	ApplicationNamespace  string
-	Config                Settings
 	DefaultResponseFormat = RESPONSEFORMAT_JSON
 
 	// Automatically populated by the build system (see Makefile / Dockerfile).
@@ -104,7 +103,9 @@ var (
 )
 
 func init() {
-	// Determine the application name and namespace.
+	// Determine the application name and namespace. This runs at package-init
+	// time (not via Load) because it is derived from the executable path and is
+	// read by Prometheus metric namespaces and templates at their own init time.
 	if path, err := os.Executable(); err != nil {
 		panic(err)
 	} else {
@@ -112,20 +113,8 @@ func init() {
 		ApplicationNamespace = strings.ToLower(strings.ReplaceAll(strings.ReplaceAll(ApplicationName, "-", ""), "_", ""))
 	}
 
-	// Initialize Viper and Logger.
-	if err := initViper(&Config); err != nil {
-		panic(err)
-	} else if err = logger.InitLogger(Config.Logging.IsDevelopment, Config.Logging.Level, Config.Logging.SamplingInitial, Config.Logging.SamplingThereafter); err != nil {
-		panic(err)
-	}
-	logger.XFFUseFirstIPAddress = Config.Logging.XFFUseFirstIPAddress
-
-	// Validate configuration values.
-	if err := Config.validate(); err != nil {
-		logger.Logger.Fatal("invalid configuration", zap.Error(err))
-	}
-
-	// Log build information.
+	// Populate build metadata. No logging here: the logger is initialized from
+	// main after Load; see LogStartupInfo.
 	if bi, ok := debug.ReadBuildInfo(); ok {
 		for _, bs := range bi.Settings {
 			switch bs.Key {
@@ -139,14 +128,18 @@ func init() {
 				VcsTimestamp = bs.Value
 			}
 		}
-		logger.Logger.Info("Build information", zap.String("build_timestamp", BuildTimestamp), zap.String("vcs", Vcs), zap.String("vcs_modified", VcsModified), zap.String("vcs_revision", VcsRevision), zap.String("vcs_timestamp", VcsTimestamp))
 	}
 
 	if CtsubmitVersion == "" {
 		CtsubmitVersion = VcsRevision
 	}
+}
 
-	// Log RLIMIT_NOFILE soft and hard limits.
+// LogStartupInfo logs build metadata and process resource limits. Call it from
+// main once the logger has been initialized.
+func LogStartupInfo() {
+	logger.Logger.Info("Build information", zap.String("build_timestamp", BuildTimestamp), zap.String("vcs", Vcs), zap.String("vcs_modified", VcsModified), zap.String("vcs_revision", VcsRevision), zap.String("vcs_timestamp", VcsTimestamp))
+
 	var rlimit syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlimit); err != nil {
 		logger.Logger.Error("Getrlimit(RLIMIT_NOFILE) error", zap.Error(err))
@@ -192,18 +185,10 @@ func (s *Settings) validate() error {
 	return nil
 }
 
-// Load reads and validates configuration into a fresh Settings value without
-// touching the package-level Config global. It performs no logging and returns
-// errors instead of terminating the process, making it suitable for tests and
-// for future constructor-injection call sites.
-//
-// It is not yet used at startup: several packages (submitter, server, request,
-// health) still read the config.Config global at runtime, so loading a second
-// Settings here would create a parallel value that could diverge from theirs.
-// Adopt Load as the sole source once those runtime reads are injected. The
-// monitor package already takes its config via monitor.New. Package-init-time
-// reads of the global have been removed, so importing those packages no longer
-// requires config.Config to be populated beforehand.
+// Load reads and validates configuration into a fresh Settings value. It
+// performs no logging and returns errors instead of terminating the process. It
+// is the single source of configuration: main calls it at startup and injects
+// the result into monitor.New, submitter.New, and server.Run.
 func Load() (*Settings, error) {
 	var s Settings
 	if err := initViper(&s); err != nil {
@@ -213,6 +198,16 @@ func Load() (*Settings, error) {
 		return nil, err
 	}
 	return &s, nil
+}
+
+// MustLoad is like Load but panics on error, for tests and simple callers that
+// want fail-fast configuration loading.
+func MustLoad() *Settings {
+	s, err := Load()
+	if err != nil {
+		panic(err)
+	}
+	return s
 }
 
 func initViper(dst *Settings) error {

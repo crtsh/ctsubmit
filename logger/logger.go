@@ -16,7 +16,9 @@ import (
 )
 
 var (
-	Logger               *zap.Logger
+	// Logger defaults to a no-op so it is safe to use before InitLogger runs
+	// (e.g. in tests). main replaces it via InitLogger at startup.
+	Logger               = zap.NewNop()
 	ShutdownWG           sync.WaitGroup
 	XFFUseFirstIPAddress bool
 )

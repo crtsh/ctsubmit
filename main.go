@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"os/signal"
 	"syscall"
 
@@ -16,6 +17,18 @@ import (
 )
 
 func main() {
+	// Load configuration and initialize the logger. config.Load is the single
+	// source of configuration; the result is injected into everything below.
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+	if err := logger.InitLogger(cfg.Logging.IsDevelopment, cfg.Logging.Level, cfg.Logging.SamplingInitial, cfg.Logging.SamplingThereafter); err != nil {
+		log.Fatalf("Failed to initialize logger: %v", err)
+	}
+	logger.XFFUseFirstIPAddress = cfg.Logging.XFFUseFirstIPAddress
+	config.LogStartupInfo()
+
 	// Configure graceful shutdown capabilities.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -24,11 +37,9 @@ func main() {
 
 	// Start the HTTP servers (Web and Monitoring) immediately.
 	// Readiness probes will report "not ready" until initial data is loaded.
-	//
-	// Inject the already-loaded config.Config global rather than config.Load(); see config.Load for why.
-	mon := monitor.New(&config.Config)
-	sub := submitter.New(&config.Config, logger.Logger, mon)
-	server.Run(&config.Config, sub, mon)
+	mon := monitor.New(cfg)
+	sub := submitter.New(cfg, logger.Logger, mon)
+	server.Run(cfg, sub, mon)
 	defer server.Shutdown()
 
 	// Start the various goroutines.

@@ -75,7 +75,7 @@ func anyBackoffURL(m *Monitor) string {
 }
 
 func TestRecordAndGetBadResponseBackoff(t *testing.T) {
-	m := New(&config.Config)
+	m := New(config.MustLoad())
 	url := anyBackoffURL(m)
 	if url == "" {
 		t.Skip("no log URLs in backoff maps")
@@ -102,7 +102,7 @@ func TestRecordAndGetBadResponseBackoff(t *testing.T) {
 }
 
 func TestRecordAndGetTimeoutBackoff(t *testing.T) {
-	m := New(&config.Config)
+	m := New(config.MustLoad())
 	url := anyBackoffURL(m)
 	if url == "" {
 		t.Skip("no log URLs in backoff maps")
@@ -128,7 +128,7 @@ func TestRecordAndGetTimeoutBackoff(t *testing.T) {
 }
 
 func TestRecordAndGetSlowResponseBackoff(t *testing.T) {
-	m := New(&config.Config)
+	m := New(config.MustLoad())
 	url := anyBackoffURL(m)
 	if url == "" {
 		t.Skip("no log URLs in backoff maps")
@@ -154,7 +154,7 @@ func TestRecordAndGetSlowResponseBackoff(t *testing.T) {
 }
 
 func TestRecord5xxWithRetryAfter(t *testing.T) {
-	m := New(&config.Config)
+	m := New(config.MustLoad())
 	url := anyBackoffURL(m)
 	if url == "" {
 		t.Skip("no log URLs in backoff maps")
@@ -183,7 +183,7 @@ func TestRecord5xxWithRetryAfter(t *testing.T) {
 }
 
 func TestRecord4xxResponse(t *testing.T) {
-	m := New(&config.Config)
+	m := New(config.MustLoad())
 	url := anyBackoffURL(m)
 	if url == "" {
 		t.Skip("no log URLs in backoff maps")
@@ -212,7 +212,7 @@ func TestRecord4xxResponse(t *testing.T) {
 }
 
 func TestGetBackoffUnknownURL(t *testing.T) {
-	m := New(&config.Config)
+	m := New(config.MustLoad())
 	unknownURL := "https://nonexistent.example.test/"
 
 	if d, _ := m.GetBadResponseBackoff(unknownURL); d != 0 {
@@ -236,7 +236,7 @@ func TestRecordBadResponseUnknownURLCreatesEntry(t *testing.T) {
 	// A log URL that isn't in the pre-populated maps (e.g. a log added to the
 	// list at runtime) should get a backoff entry created on first use, rather
 	// than being silently dropped.
-	m := New(&config.Config)
+	m := New(config.MustLoad())
 	url := "https://newly-added-log.example.test/"
 
 	m.mutexBadResponse.Lock()
@@ -253,7 +253,7 @@ func TestRecordBadResponseUnknownURLCreatesEntry(t *testing.T) {
 }
 
 func TestBackoffDoesNotExtendWithEarlierDeadline(t *testing.T) {
-	m := New(&config.Config)
+	m := New(config.MustLoad())
 	url := anyBackoffURL(m)
 	if url == "" {
 		t.Skip("no log URLs in backoff maps")
