@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/crtsh/ctsubmit/config"
 	"github.com/crtsh/ctsubmit/utils"
 
 	"github.com/valyala/fasthttp"
@@ -23,37 +24,39 @@ var (
 	XFFUseFirstIPAddress bool
 )
 
-func InitLogger(isDevelopment bool, level string, samplingInitial int, samplingThereafter int) error {
+func InitLogger(cfg *config.Settings) error {
+	XFFUseFirstIPAddress = cfg.Logging.XFFUseFirstIPAddress
+
 	// Create and configure a Zap logger.
 	var err error
-	var cfg zap.Config
-	if isDevelopment {
-		cfg = zap.NewDevelopmentConfig() // "debug" and above; console-friendly output.
+	var zapCfg zap.Config
+	if cfg.Logging.IsDevelopment {
+		zapCfg = zap.NewDevelopmentConfig() // "debug" and above; console-friendly output.
 	} else {
-		cfg = zap.NewProductionConfig() // "info" and above; JSON output.
-		cfg.DisableCaller = true
+		zapCfg = zap.NewProductionConfig() // "info" and above; JSON output.
+		zapCfg.DisableCaller = true
 	}
 	// Override log level threshold, if required.
-	if level != "" {
-		if cfg.Level, err = zap.ParseAtomicLevel(level); err != nil {
+	if cfg.Logging.Level != "" {
+		if zapCfg.Level, err = zap.ParseAtomicLevel(cfg.Logging.Level); err != nil {
 			return err
 		}
 	}
 	// Configure or disable log sampling.
-	if samplingInitial == math.MaxInt && samplingThereafter == math.MaxInt {
-		cfg.Sampling = nil // Disable sampling.
+	if cfg.Logging.SamplingInitial == math.MaxInt && cfg.Logging.SamplingThereafter == math.MaxInt {
+		zapCfg.Sampling = nil // Disable sampling.
 	} else {
-		cfg.Sampling = &zap.SamplingConfig{
-			Initial:    samplingInitial,
-			Thereafter: samplingThereafter,
+		zapCfg.Sampling = &zap.SamplingConfig{
+			Initial:    cfg.Logging.SamplingInitial,
+			Thereafter: cfg.Logging.SamplingThereafter,
 		}
 	}
 	// Configure timestamp format.
-	cfg.EncoderConfig.TimeKey = "@timestamp"
-	cfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	cfg.EncoderConfig.EncodeDuration = zapcore.NanosDurationEncoder
+	zapCfg.EncoderConfig.TimeKey = "@timestamp"
+	zapCfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	zapCfg.EncoderConfig.EncodeDuration = zapcore.NanosDurationEncoder
 
-	Logger, err = cfg.Build()
+	Logger, err = zapCfg.Build()
 	return err
 }
 

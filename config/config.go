@@ -9,8 +9,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/crtsh/ctsubmit/logger"
-
 	"github.com/spf13/viper"
 
 	"go.uber.org/zap"
@@ -137,14 +135,14 @@ func init() {
 
 // LogStartupInfo logs build metadata and process resource limits. Call it from
 // main once the logger has been initialized.
-func LogStartupInfo() {
-	logger.Logger.Info("Build information", zap.String("build_timestamp", BuildTimestamp), zap.String("vcs", Vcs), zap.String("vcs_modified", VcsModified), zap.String("vcs_revision", VcsRevision), zap.String("vcs_timestamp", VcsTimestamp))
+func LogStartupInfo(l *zap.Logger) {
+	l.Info("Build information", zap.String("build_timestamp", BuildTimestamp), zap.String("vcs", Vcs), zap.String("vcs_modified", VcsModified), zap.String("vcs_revision", VcsRevision), zap.String("vcs_timestamp", VcsTimestamp))
 
 	var rlimit syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &rlimit); err != nil {
-		logger.Logger.Error("Getrlimit(RLIMIT_NOFILE) error", zap.Error(err))
+		l.Error("Getrlimit(RLIMIT_NOFILE) error", zap.Error(err))
 	} else {
-		logger.Logger.Info("Resource limits", zap.Uint64("rlimit_nofile_soft", rlimit.Cur), zap.Uint64("rlimit_nofile_hard", rlimit.Max), zap.String("gomemlimit", os.Getenv("GOMEMLIMIT")))
+		l.Info("Resource limits", zap.Uint64("rlimit_nofile_soft", rlimit.Cur), zap.Uint64("rlimit_nofile_hard", rlimit.Max), zap.String("gomemlimit", os.Getenv("GOMEMLIMIT")))
 	}
 }
 

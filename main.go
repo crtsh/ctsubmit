@@ -23,11 +23,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
-	if err := logger.InitLogger(cfg.Logging.IsDevelopment, cfg.Logging.Level, cfg.Logging.SamplingInitial, cfg.Logging.SamplingThereafter); err != nil {
+	if err := logger.InitLogger(cfg); err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
-	logger.XFFUseFirstIPAddress = cfg.Logging.XFFUseFirstIPAddress
-	config.LogStartupInfo()
+	config.LogStartupInfo(logger.Logger)
 
 	// Configure graceful shutdown capabilities.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
