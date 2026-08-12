@@ -7,6 +7,8 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -184,6 +186,27 @@ type errorReader struct{}
 
 func (errorReader) Read([]byte) (int, error) { return 0, errors.New("read failure") }
 
+// addChainResponseBody serializes an SCT into the JSON body a log returns from
+// add-chain / add-pre-chain.
+func addChainResponseBody(t *testing.T, sct *ctgo.SignedCertificateTimestamp) []byte {
+	t.Helper()
+	sig, err := tls.Marshal(sct.Signature)
+	if err != nil {
+		t.Fatalf("tls.Marshal(signature): %v", err)
+	}
+	body, err := json.Marshal(ctgo.AddChainResponse{
+		SCTVersion: sct.SCTVersion,
+		ID:         sct.LogID.KeyID[:],
+		Timestamp:  sct.Timestamp,
+		Extensions: base64.StdEncoding.EncodeToString(sct.Extensions),
+		Signature:  sig,
+	})
+	if err != nil {
+		t.Fatalf("marshal AddChainResponse: %v", err)
+	}
+	return body
+}
+
 func TestProcessHTTPResponseFailures(t *testing.T) {
 	cfg := config.MustLoad()
 	s := New(cfg, zap.NewNop(), monitor.New(cfg))
@@ -192,6 +215,15 @@ func TestProcessHTTPResponseFailures(t *testing.T) {
 	body := func(status int, s string) *http.Response {
 		return &http.Response{StatusCode: status, Body: io.NopCloser(strings.NewReader(s)), Header: http.Header{}}
 	}
+
+	// A decodable SCT with a future timestamp is rejected before signature checks.
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	futureSCT := makeSignedSCT(t, key, randomLogID(t), ctgo.X509LogEntryType, []byte("d"), nil, uint64(time.Now().Add(time.Hour).UnixMilli()))
+	// A decodable SCT from an unregistered log fails signature verification.
+	unknownSCT := makeSignedSCT(t, key, randomLogID(t), ctgo.X509LogEntryType, []byte("d"), nil, uint64(time.Now().UnixMilli()))
 
 	cases := []struct {
 		name string
@@ -206,6 +238,8 @@ func TestProcessHTTPResponseFailures(t *testing.T) {
 		{"body read error", &http.Response{StatusCode: 200, Body: io.NopCloser(errorReader{}), Header: http.Header{}}, nil},
 		{"invalid json", body(200, "not json"), nil},
 		{"undecodable sct", body(200, "{}"), nil},
+		{"future timestamp", body(200, string(addChainResponseBody(t, futureSCT))), nil},
+		{"signature verification failure", body(200, string(addChainResponseBody(t, unknownSCT))), nil},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

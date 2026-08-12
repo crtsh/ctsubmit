@@ -2,6 +2,9 @@ package submitter
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -96,5 +99,83 @@ func TestSubmitNoEligibleLogs(t *testing.T) {
 	strategy := []StrategyMember{{SubmissionURL: "https://excluded.example/", Operator: "A", Bucket: EXCLUDED}}
 	if _, _, err := s.submit(context.Background(), sr, strategy, nil, ctgo.X509LogEntryType, []byte("data")); err == nil {
 		t.Fatal("expected an error when no logs are eligible")
+	}
+}
+
+func TestSubmitReachesQuorum(t *testing.T) {
+	// A log that returns a validly-signed SCT lets submit reach quorum, covering
+	// the success paths of submit, submitToLog, and processHTTPResponse.
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logID := randomLogID(t)
+	registerTestVerifier(t, logID, &priv.PublicKey)
+
+	entryData := []byte("leaf-certificate-der")
+	sct := makeSignedSCT(t, priv, logID, ctgo.X509LogEntryType, entryData, nil, uint64(time.Now().UnixMilli()))
+	respBody := addChainResponseBody(t, sct)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(respBody)
+	}))
+	defer srv.Close()
+
+	cfg := config.MustLoad()
+	s := New(cfg, zap.NewNop(), monitor.New(cfg))
+	sr := NewSubmissionRequest()
+	sr.SCTs = 1
+	sr.Operators = 1
+	strategy := []StrategyMember{{SubmissionURL: srv.URL, Operator: "A", LogType: LOGTYPE_RFC6962, Bucket: NEUTRAL}}
+
+	responses, scts, err := s.submit(context.Background(), sr, strategy, nil, ctgo.X509LogEntryType, entryData)
+	if err != nil {
+		t.Fatalf("submit: unexpected error: %v", err)
+	}
+	if len(responses) != 1 || len(scts) != 1 {
+		t.Fatalf("expected 1 response and 1 SCT, got %d and %d", len(responses), len(scts))
+	}
+}
+
+func TestSubmitFailsOverToNextLog(t *testing.T) {
+	// The first log fails, so submit must launch the next eligible log, which
+	// succeeds. Exercises the failure -> startNextEligible -> success path.
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	logID := randomLogID(t)
+	registerTestVerifier(t, logID, &priv.PublicKey)
+
+	entryData := []byte("leaf-certificate-der")
+	sct := makeSignedSCT(t, priv, logID, ctgo.X509LogEntryType, entryData, nil, uint64(time.Now().UnixMilli()))
+	respBody := addChainResponseBody(t, sct)
+
+	failSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer failSrv.Close()
+	okSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write(respBody)
+	}))
+	defer okSrv.Close()
+
+	cfg := config.MustLoad()
+	s := New(cfg, zap.NewNop(), monitor.New(cfg))
+	sr := NewSubmissionRequest()
+	sr.SCTs = 1
+	sr.Operators = 1
+	// Only one log starts in the initial batch (SCTs=1); the failing log is first.
+	strategy := []StrategyMember{
+		{SubmissionURL: failSrv.URL, Operator: "A", LogType: LOGTYPE_RFC6962, Bucket: NEUTRAL},
+		{SubmissionURL: okSrv.URL, Operator: "B", LogType: LOGTYPE_RFC6962, Bucket: NEUTRAL},
+	}
+
+	responses, scts, err := s.submit(context.Background(), sr, strategy, nil, ctgo.X509LogEntryType, entryData)
+	if err != nil {
+		t.Fatalf("submit: unexpected error: %v", err)
+	}
+	if len(responses) != 1 || len(scts) != 1 {
+		t.Fatalf("expected quorum from the failover log, got %d responses, %d scts", len(responses), len(scts))
 	}
 }
