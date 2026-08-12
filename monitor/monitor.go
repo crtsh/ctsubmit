@@ -18,7 +18,7 @@ import (
 // re-register them.
 type Monitor struct {
 	cfg *config.Settings
-	log *zap.Logger
+	lgr *zap.Logger
 
 	backoffBadResponse  map[string]*backoffEntry
 	mutexBadResponse    sync.RWMutex
@@ -50,14 +50,14 @@ type Monitor struct {
 // New builds a Monitor whose HTTP client timeouts come from cfg and whose
 // caches are pre-populated for all known logs in ctloglists.CrtshV3Active. The
 // logger is optional; when omitted (e.g. in tests) a no-op logger is used.
-func New(cfg *config.Settings, log ...*zap.Logger) *Monitor {
-	l := zap.NewNop()
-	if len(log) > 0 && log[0] != nil {
-		l = log[0]
+func New(cfg *config.Settings, lgrs ...*zap.Logger) *Monitor {
+	lgr := zap.NewNop()
+	if len(lgrs) > 0 && lgrs[0] != nil {
+		lgr = lgrs[0]
 	}
 	m := &Monitor{
 		cfg:                 cfg,
-		log:                 l,
+		lgr:                 lgr,
 		backoffBadResponse:  make(map[string]*backoffEntry),
 		backoffTimeout:      make(map[string]*backoffEntry),
 		backoff5xx:          make(map[string]*backoffEntry),

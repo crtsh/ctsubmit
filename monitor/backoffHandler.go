@@ -40,7 +40,7 @@ func (m *Monitor) initBackoffMaps() {
 }
 
 func (m *Monitor) RecordBadResponse(submissionURL string, err error) bool {
-	m.log.Warn("Bad response", zap.String("url", submissionURL), zap.Error(err))
+	m.lgr.Warn("Bad response", zap.String("url", submissionURL), zap.Error(err))
 
 	m.mutexBadResponse.Lock()
 	defer m.mutexBadResponse.Unlock()
@@ -61,7 +61,7 @@ func (m *Monitor) RecordBadResponse(submissionURL string, err error) bool {
 }
 
 func (m *Monitor) RecordTimeout(submissionURL string, err error) bool {
-	m.log.Warn("Connection timeout", zap.String("url", submissionURL), zap.Error(err))
+	m.lgr.Warn("Connection timeout", zap.String("url", submissionURL), zap.Error(err))
 
 	m.mutexTimeout.Lock()
 	defer m.mutexTimeout.Unlock()
@@ -82,7 +82,7 @@ func (m *Monitor) RecordTimeout(submissionURL string, err error) bool {
 }
 
 func (m *Monitor) Record5xxResponse(submissionURL string, httpResponse *http.Response) bool {
-	m.log.Warn("HTTP server error", zap.Int("status_code", httpResponse.StatusCode), zap.String("url", submissionURL))
+	m.lgr.Warn("HTTP server error", zap.Int("status_code", httpResponse.StatusCode), zap.String("url", submissionURL))
 
 	backoffDuration := m.cfg.Strategy.Backoff.Default5xxPeriod
 	if retryAfter := parseRetryAfter(httpResponse); retryAfter > 0 {
@@ -109,7 +109,7 @@ func (m *Monitor) Record5xxResponse(submissionURL string, httpResponse *http.Res
 }
 
 func (m *Monitor) Record4xxResponse(submissionURL string, httpResponse *http.Response) bool {
-	m.log.Warn("HTTP client error", zap.Int("status_code", httpResponse.StatusCode), zap.String("url", submissionURL))
+	m.lgr.Warn("HTTP client error", zap.Int("status_code", httpResponse.StatusCode), zap.String("url", submissionURL))
 
 	backoffDuration := m.cfg.Strategy.Backoff.Default4xxPeriod
 	if retryAfter := parseRetryAfter(httpResponse); retryAfter > 0 {
@@ -136,7 +136,7 @@ func (m *Monitor) Record4xxResponse(submissionURL string, httpResponse *http.Res
 }
 
 func (m *Monitor) RecordSlowResponse(submissionURL string) bool {
-	m.log.Warn("Slow response", zap.String("url", submissionURL))
+	m.lgr.Warn("Slow response", zap.String("url", submissionURL))
 
 	m.mutexSlowResponse.Lock()
 	defer m.mutexSlowResponse.Unlock()

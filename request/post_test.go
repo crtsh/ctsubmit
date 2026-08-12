@@ -7,17 +7,18 @@ import (
 
 	"github.com/crtsh/ctsubmit/config"
 	"github.com/crtsh/ctsubmit/health"
-	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/monitor"
 	"github.com/crtsh/ctsubmit/submitter"
 
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttputil"
+
+	"go.uber.org/zap"
 )
 
 func testSubmitter() *submitter.Submitter {
 	cfg := config.MustLoad()
-	return submitter.New(cfg, logger.Logger, monitor.New(cfg))
+	return submitter.New(cfg, zap.NewNop(), monitor.New(cfg))
 }
 
 func TestGetResponseFormatFromParam(t *testing.T) {

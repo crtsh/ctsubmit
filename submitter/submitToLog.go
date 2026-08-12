@@ -27,14 +27,14 @@ import (
 func (s *Submitter) submitToLog(ctx context.Context, strategyIdx int, submissionURL string, apiPath string, requestBody []byte, sha256IssuerSPKI *[sha256.Size]byte, entryType ctgo.LogEntryType, entryData []byte, events chan<- submissionEvent) {
 	endpointURL, err := url.JoinPath(submissionURL, apiPath)
 	if err != nil {
-		s.log.Error("Failed to construct submission URL", zap.String("submissionURL", submissionURL), zap.Error(err))
+		s.lgr.Error("Failed to construct submission URL", zap.String("submissionURL", submissionURL), zap.Error(err))
 		events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: fmt.Sprintf("Failed: could not construct submission URL: %v", err)}
 		return
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpointURL, bytes.NewReader(requestBody))
 	if err != nil {
-		s.log.Error("Failed to create HTTP request", zap.String("url", endpointURL), zap.Error(err))
+		s.lgr.Error("Failed to create HTTP request", zap.String("url", endpointURL), zap.Error(err))
 		events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: fmt.Sprintf("Failed: could not create HTTP request: %v", err)}
 		return
 	}
@@ -197,7 +197,7 @@ func (s *Submitter) processHTTPResponse(strategyIdx int, submissionURL string, r
 		return
 	}
 
-	s.log.Debug("Accepted SCT", zap.Int("strategyIdx", strategyIdx), zap.String("submissionURL", submissionURL), zap.String("logID", hex.EncodeToString(sct.LogID.KeyID[:])), zap.Uint64("timestamp", sct.Timestamp))
+	s.lgr.Debug("Accepted SCT", zap.Int("strategyIdx", strategyIdx), zap.String("submissionURL", submissionURL), zap.String("logID", hex.EncodeToString(sct.LogID.KeyID[:])), zap.Uint64("timestamp", sct.Timestamp))
 	events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventSuccess, response: addChainResponse, sct: sct, outcome: "Submission successful", timeTaken: timeTaken}
 	s.mon.RecordSubmissionOutcome(submissionURL, "success")
 }

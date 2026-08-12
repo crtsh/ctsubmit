@@ -7,16 +7,17 @@ import (
 	"testing"
 
 	"github.com/crtsh/ctsubmit/config"
-	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/loglists"
 	"github.com/crtsh/ctsubmit/monitor"
 
 	ctgo "github.com/google/certificate-transparency-go"
+
+	"go.uber.org/zap"
 )
 
 func TestDevizeSubmissionStrategy(t *testing.T) {
 	cfg := config.MustLoad()
-	s := New(cfg, logger.Logger, monitor.New(cfg))
+	s := New(cfg, zap.NewNop(), monitor.New(cfg))
 
 	for _, entryType := range []ctgo.LogEntryType{ctgo.X509LogEntryType, ctgo.PrecertLogEntryType} {
 		strategy := s.devizeSubmissionStrategy(loglists.UsableTLSLogs, entryType)

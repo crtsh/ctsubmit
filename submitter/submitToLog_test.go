@@ -15,12 +15,13 @@ import (
 	"time"
 
 	"github.com/crtsh/ctsubmit/config"
-	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/monitor"
 
 	"github.com/crtsh/ctloglists"
 	ctgo "github.com/google/certificate-transparency-go"
 	"github.com/google/certificate-transparency-go/tls"
+
+	"go.uber.org/zap"
 )
 
 // testLeafEntry builds the LogEntry exactly as verifySCTSignature does, so the
@@ -185,7 +186,7 @@ func (errorReader) Read([]byte) (int, error) { return 0, errors.New("read failur
 
 func TestProcessHTTPResponseFailures(t *testing.T) {
 	cfg := config.MustLoad()
-	s := New(cfg, logger.Logger, monitor.New(cfg))
+	s := New(cfg, zap.NewNop(), monitor.New(cfg))
 	const url = "https://process-test.example/"
 
 	body := func(status int, s string) *http.Response {

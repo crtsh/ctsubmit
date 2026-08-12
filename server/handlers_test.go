@@ -6,12 +6,13 @@ import (
 
 	"github.com/crtsh/ctsubmit/config"
 	"github.com/crtsh/ctsubmit/health"
-	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/monitor"
 	"github.com/crtsh/ctsubmit/submitter"
 
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttputil"
+
+	"go.uber.org/zap"
 )
 
 func newInmemClient(t *testing.T, handler fasthttp.RequestHandler) *fasthttp.HostClient {
@@ -50,15 +51,16 @@ func TestServerEndpoints(t *testing.T) {
 	cfg.Server.EnableDebugEndpoints = true
 
 	mon := monitor.New(cfg)
-	sub := submitter.New(cfg, logger.Logger, mon)
+	lgr := zap.NewNop()
+	sub := submitter.New(cfg, lgr, mon)
 	h := health.New()
 
-	Run(cfg, sub, mon, h, logger.Logger)
-	defer Shutdown(logger.Logger)
+	Run(cfg, sub, mon, h, lgr)
+	defer Shutdown(lgr)
 
 	h.SetInitialDataReady() // so /readyz reports ready
 
-	monClient := newInmemClient(t, func(ctx *fasthttp.RequestCtx) { monitoringHandler(ctx, cfg, mon, h, logger.Logger) })
+	monClient := newInmemClient(t, func(ctx *fasthttp.RequestCtx) { monitoringHandler(ctx, cfg, mon, h, lgr) })
 	for _, p := range []string{
 		"/livez", "/readyz", "/metrics",
 		"/ctsubmit.css", "/dashboard", "/favicon.ico", "/mascot.png",
@@ -68,7 +70,7 @@ func TestServerEndpoints(t *testing.T) {
 		doRequest(t, monClient, fasthttp.MethodGet, p, "")
 	}
 
-	webClient := newInmemClient(t, func(ctx *fasthttp.RequestCtx) { webHandler(ctx, cfg, sub, mon, h, logger.Logger) })
+	webClient := newInmemClient(t, func(ctx *fasthttp.RequestCtx) { webHandler(ctx, cfg, sub, mon, h, lgr) })
 	for _, p := range []string{
 		"/", "/ctsubmit.css", "/dashboard", "/favicon.ico", "/mascot.png",
 		"/usable_tls_logs.json", "/active_tls_logs.json", "/test_tls_logs.json", "/usable_bimi_logs.json",

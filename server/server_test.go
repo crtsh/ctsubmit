@@ -5,10 +5,11 @@ import (
 
 	"github.com/crtsh/ctsubmit/config"
 	"github.com/crtsh/ctsubmit/health"
-	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/monitor"
 
 	"github.com/valyala/fasthttp"
+
+	"go.uber.org/zap"
 )
 
 func newMonitoringGetCtx(path string) *fasthttp.RequestCtx {
@@ -26,7 +27,7 @@ func TestDebugEndpointsReturn404WhenDisabled(t *testing.T) {
 
 	for _, path := range []string{"/debug/build", "/debug/config", "/debug/pprof/", "/debug/pprof/heap"} {
 		ctx := newMonitoringGetCtx(path)
-		monitoringHandler(ctx, cfg, mon, h, logger.Logger)
+		monitoringHandler(ctx, cfg, mon, h, zap.NewNop())
 		if got := ctx.Response.StatusCode(); got != fasthttp.StatusNotFound {
 			t.Errorf("path %s: expected 404 when debug endpoints disabled, got %d", path, got)
 		}
@@ -41,7 +42,7 @@ func TestDebugEndpointsServedWhenEnabled(t *testing.T) {
 
 	for _, path := range []string{"/debug/build", "/debug/config"} {
 		ctx := newMonitoringGetCtx(path)
-		monitoringHandler(ctx, cfg, mon, h, logger.Logger)
+		monitoringHandler(ctx, cfg, mon, h, zap.NewNop())
 		if got := ctx.Response.StatusCode(); got != fasthttp.StatusOK {
 			t.Errorf("path %s: expected 200 when debug endpoints enabled, got %d", path, got)
 		}

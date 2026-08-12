@@ -14,11 +14,12 @@ import (
 )
 
 func TestInitLogger(t *testing.T) {
-	if err := InitLogger(config.MustLoad()); err != nil {
+	l, err := InitLogger(config.MustLoad())
+	if err != nil {
 		t.Fatalf("InitLogger(default): %v", err)
 	}
-	if Logger == nil {
-		t.Fatal("Logger is nil after InitLogger")
+	if l == nil {
+		t.Fatal("InitLogger returned a nil logger")
 	}
 
 	dev := config.MustLoad()
@@ -26,13 +27,13 @@ func TestInitLogger(t *testing.T) {
 	dev.Logging.Level = "debug"
 	dev.Logging.SamplingInitial = 10
 	dev.Logging.SamplingThereafter = 10
-	if err := InitLogger(dev); err != nil {
+	if _, err := InitLogger(dev); err != nil {
 		t.Fatalf("InitLogger(development+sampling+level): %v", err)
 	}
 
 	bad := config.MustLoad()
 	bad.Logging.Level = "not-a-level"
-	if err := InitLogger(bad); err == nil {
+	if _, err := InitLogger(bad); err == nil {
 		t.Fatal("InitLogger with an invalid level should return an error")
 	}
 }
@@ -102,7 +103,7 @@ func TestGetRealClientIP(t *testing.T) {
 }
 
 func TestLogRequest(t *testing.T) {
-	Logger = zap.NewNop()
+	lgr := zap.NewNop()
 
 	for _, level := range []zapcore.Level{zap.ErrorLevel, zap.WarnLevel, zap.InfoLevel, zap.DebugLevel} {
 		ctx := &fasthttp.RequestCtx{}
@@ -111,9 +112,9 @@ func TestLogRequest(t *testing.T) {
 		ctx.Request.Header.SetContentType("application/json")
 		ctx.Request.Header.Set("User-Agent", "test-agent")
 		SetDetails(ctx, level, "msg", errors.New("e"), []zap.Field{zap.String("k", "v")})
-		LogRequest(Logger, ctx) // must not panic and must hit the level's switch arm.
+		LogRequest(lgr, ctx) // must not panic and must hit the level's switch arm.
 	}
 
 	// No user values set: defaults to Error level with an empty message.
-	LogRequest(Logger, &fasthttp.RequestCtx{})
+	LogRequest(lgr, &fasthttp.RequestCtx{})
 }

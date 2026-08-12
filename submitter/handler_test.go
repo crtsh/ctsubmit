@@ -14,11 +14,12 @@ import (
 
 	"github.com/crtsh/ctsubmit/config"
 	"github.com/crtsh/ctsubmit/endpoint"
-	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/loglists"
 	"github.com/crtsh/ctsubmit/monitor"
 
 	x509 "github.com/google/certificate-transparency-go/x509"
+
+	"go.uber.org/zap"
 )
 
 // selfSignedDER returns the DER of an ECDSA-P256 self-signed certificate with
@@ -104,7 +105,7 @@ func TestDetermineCompatibleLogs(t *testing.T) {
 
 func TestHandle(t *testing.T) {
 	cfg := config.MustLoad()
-	s := New(cfg, logger.Logger, monitor.New(cfg))
+	s := New(cfg, zap.NewNop(), monitor.New(cfg))
 	der := selfSignedDER(t, time.Now().Add(-time.Hour), time.Now().Add(90*24*time.Hour))
 
 	// A self-signed cert has no compatible logs, so Handle errors before any

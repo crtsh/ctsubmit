@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/crtsh/ctsubmit/config"
-	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/monitor"
 
 	ctgo "github.com/google/certificate-transparency-go"
+
+	"go.uber.org/zap"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -24,7 +25,7 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 func TestSubmitPropagatesContextCancellationToLogRequest(t *testing.T) {
 	requestCancelled := make(chan struct{})
 	cfg := config.MustLoad()
-	s := New(cfg, logger.Logger, monitor.New(cfg))
+	s := New(cfg, zap.NewNop(), monitor.New(cfg))
 	s.client = &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			<-req.Context().Done()
@@ -67,7 +68,7 @@ func TestSubmitAllLogsFail(t *testing.T) {
 	defer srv.Close()
 
 	cfg := config.MustLoad()
-	s := New(cfg, logger.Logger, monitor.New(cfg))
+	s := New(cfg, zap.NewNop(), monitor.New(cfg))
 
 	sr := NewSubmissionRequest()
 	sr.SCTs = 2
@@ -88,7 +89,7 @@ func TestSubmitAllLogsFail(t *testing.T) {
 
 func TestSubmitNoEligibleLogs(t *testing.T) {
 	cfg := config.MustLoad()
-	s := New(cfg, logger.Logger, monitor.New(cfg))
+	s := New(cfg, zap.NewNop(), monitor.New(cfg))
 
 	sr := NewSubmissionRequest()
 	// The only strategy member is excluded, so there are no eligible logs.

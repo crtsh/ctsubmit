@@ -22,24 +22,25 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
-	if err = logger.InitLogger(cfg); err != nil {
+	lgr, err := logger.InitLogger(cfg)
+	if err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
-	config.LogStartupInfo(logger.Logger)
+	config.LogStartupInfo(lgr)
 
 	// Configure graceful shutdown capabilities.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-	defer logger.Logger.Info("Shutting down")
+	defer lgr.Info("Shutting down")
 	defer logger.ShutdownWG.Wait()
 
 	// Start the HTTP servers (Web and Monitoring) immediately.
 	// Readiness probes will report "not ready" until initial data is loaded.
-	mon := monitor.New(cfg, logger.Logger)
-	sub := submitter.New(cfg, logger.Logger, mon)
+	mon := monitor.New(cfg, lgr)
+	sub := submitter.New(cfg, lgr, mon)
 	h := health.New()
-	server.Run(cfg, sub, mon, h, logger.Logger)
-	defer server.Shutdown(logger.Logger)
+	server.Run(cfg, sub, mon, h, lgr)
+	defer server.Shutdown(lgr)
 
 	// Start the various goroutines.
 	logger.ShutdownWG.Add(2)
@@ -51,12 +52,12 @@ func main() {
 		mon.FetchEndpointUptimes()
 		mon.FetchAllSTHs()
 		h.SetInitialDataReady()
-		logger.Logger.Info("Initial external data loaded; service is now ready")
+		lgr.Info("Initial external data loaded; service is now ready")
 	}()
 
 	// Wait to be interrupted.
 	<-ctx.Done()
 
 	// Ensure all log messages are flushed before we exit.
-	_ = logger.Logger.Sync()
+	_ = lgr.Sync()
 }

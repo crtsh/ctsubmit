@@ -54,7 +54,7 @@ func initializeUptimeMap(uptimeMap map[string]*EndpointUptimes) {
 }
 
 func (m *Monitor) UptimeFetcher(ctx context.Context) {
-	m.log.Info("Started UptimeFetcher")
+	m.lgr.Info("Started UptimeFetcher")
 
 	for {
 		select {
@@ -64,7 +64,7 @@ func (m *Monitor) UptimeFetcher(ctx context.Context) {
 		// Respond to graceful shutdown requests.
 		case <-ctx.Done():
 			logger.ShutdownWG.Done()
-			m.log.Info("Stopped UptimeFetcher")
+			m.lgr.Info("Stopped UptimeFetcher")
 			return
 		}
 	}
@@ -74,11 +74,11 @@ func (m *Monitor) FetchEndpointUptimes() {
 	var err error
 
 	if err = m.fetchEndpointUptimes(endpointUptime24hURL, m.uptime24h, &m.mutex24h); err != nil {
-		m.log.Warn("Failed to fetch 24h endpoint uptime", zap.Error(err))
+		m.lgr.Warn("Failed to fetch 24h endpoint uptime", zap.Error(err))
 	}
 
 	if err = m.fetchEndpointUptimes(endpointUptime90dURL, m.uptime90d, &m.mutex90d); err != nil {
-		m.log.Warn("Failed to fetch 90d endpoint uptime", zap.Error(err))
+		m.lgr.Warn("Failed to fetch 90d endpoint uptime", zap.Error(err))
 	}
 }
 
@@ -121,7 +121,7 @@ func (m *Monitor) fetchEndpointUptimes(csvURL string, uptimeMap map[string]*Endp
 			}
 			percentage, err := strconv.ParseFloat(line[2], 64)
 			if err != nil {
-				m.log.Warn("Failed to parse endpoint uptime percentage", zap.String("url", line[0]), zap.String("endpoint", line[1]), zap.String("percentage", line[2]), zap.Error(err))
+				m.lgr.Warn("Failed to parse endpoint uptime percentage", zap.String("url", line[0]), zap.String("endpoint", line[1]), zap.String("percentage", line[2]), zap.Error(err))
 			} else {
 				switch line[1] {
 				case "add-chain":
@@ -143,7 +143,7 @@ func (m *Monitor) fetchEndpointUptimes(csvURL string, uptimeMap map[string]*Endp
 				case "tile":
 					endpointUptime.Tile = percentage
 				default:
-					m.log.Warn("Unknown endpoint in uptime data", zap.String("url", line[0]), zap.String("endpoint", line[1]), zap.String("percentage", line[2]))
+					m.lgr.Warn("Unknown endpoint in uptime data", zap.String("url", line[0]), zap.String("endpoint", line[1]), zap.String("percentage", line[2]))
 				}
 
 				if percentage < endpointUptime.Lowest {

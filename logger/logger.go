@@ -17,18 +17,17 @@ import (
 )
 
 var (
-	// Logger defaults to a no-op so it is safe to use before InitLogger runs
-	// (e.g. in tests). main replaces it via InitLogger at startup.
-	Logger               = zap.NewNop()
 	ShutdownWG           sync.WaitGroup
 	XFFUseFirstIPAddress bool
 )
 
-func InitLogger(cfg *config.Settings) error {
+// InitLogger builds the application's zap.Logger from cfg and returns it for
+// injection into the components that need it; the logger package no longer
+// holds it as a package-level global.
+func InitLogger(cfg *config.Settings) (*zap.Logger, error) {
 	XFFUseFirstIPAddress = cfg.Logging.XFFUseFirstIPAddress
 
 	// Create and configure a Zap logger.
-	var err error
 	var zapCfg zap.Config
 	if cfg.Logging.IsDevelopment {
 		zapCfg = zap.NewDevelopmentConfig() // "debug" and above; console-friendly output.
@@ -38,9 +37,11 @@ func InitLogger(cfg *config.Settings) error {
 	}
 	// Override log level threshold, if required.
 	if cfg.Logging.Level != "" {
-		if zapCfg.Level, err = zap.ParseAtomicLevel(cfg.Logging.Level); err != nil {
-			return err
+		level, err := zap.ParseAtomicLevel(cfg.Logging.Level)
+		if err != nil {
+			return nil, err
 		}
+		zapCfg.Level = level
 	}
 	// Configure or disable log sampling.
 	if cfg.Logging.SamplingInitial == math.MaxInt && cfg.Logging.SamplingThereafter == math.MaxInt {
@@ -56,8 +57,7 @@ func InitLogger(cfg *config.Settings) error {
 	zapCfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 	zapCfg.EncoderConfig.EncodeDuration = zapcore.NanosDurationEncoder
 
-	Logger, err = zapCfg.Build()
-	return err
+	return zapCfg.Build()
 }
 
 func SetDetails(fhctx *fasthttp.RequestCtx, level zapcore.Level, msg string, err error, extraFields []zap.Field) {
@@ -90,7 +90,7 @@ func getRealClientIP(fhctx *fasthttp.RequestCtx) string {
 	return remoteAddr
 }
 
-func LogRequest(l *zap.Logger, fhctx *fasthttp.RequestCtx) {
+func LogRequest(lgr *zap.Logger, fhctx *fasthttp.RequestCtx) {
 	// Add common logging details.
 	zf := []zap.Field{
 		zap.String("client_ip", getRealClientIP(fhctx)),
@@ -132,12 +132,12 @@ func LogRequest(l *zap.Logger, fhctx *fasthttp.RequestCtx) {
 	// Write the log entry.
 	switch level {
 	case zap.ErrorLevel:
-		l.Error(msg, zf...)
+		lgr.Error(msg, zf...)
 	case zap.WarnLevel:
-		l.Warn(msg, zf...)
+		lgr.Warn(msg, zf...)
 	case zap.InfoLevel:
-		l.Info(msg, zf...)
+		lgr.Info(msg, zf...)
 	case zap.DebugLevel:
-		l.Debug(msg, zf...)
+		lgr.Debug(msg, zf...)
 	}
 }
