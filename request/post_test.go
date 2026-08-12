@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/crtsh/ctsubmit/config"
+	"github.com/crtsh/ctsubmit/health"
 	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/monitor"
 	"github.com/crtsh/ctsubmit/submitter"
@@ -54,7 +55,7 @@ func TestPOSTUnknownEndpointReturns404(t *testing.T) {
 	ctx.Request.SetRequestURI("/not-a-real-endpoint")
 	ctx.Request.SetBody([]byte(`{"chain":[]}`))
 
-	if got := POST(ctx, "not-a-real-endpoint", config.MustLoad(), testSubmitter()); got != fasthttp.StatusNotFound {
+	if got := POST(ctx, "not-a-real-endpoint", config.MustLoad(), testSubmitter(), health.New()); got != fasthttp.StatusNotFound {
 		t.Fatalf("expected 404 for unknown endpoint, got %d", got)
 	}
 }
@@ -64,7 +65,7 @@ func TestPOSTEmptyBodyReturnsBadRequest(t *testing.T) {
 	ctx.Request.Header.SetMethod(fasthttp.MethodPost)
 	ctx.Request.SetRequestURI("/add-chain")
 
-	if got := POST(ctx, "add-chain", config.MustLoad(), testSubmitter()); got != fasthttp.StatusBadRequest {
+	if got := POST(ctx, "add-chain", config.MustLoad(), testSubmitter(), health.New()); got != fasthttp.StatusBadRequest {
 		t.Fatalf("expected 400 for empty body, got %d", got)
 	}
 }
@@ -77,7 +78,7 @@ func TestPOSTTimeoutReturnsMinusOne(t *testing.T) {
 	ctx.Request.SetRequestURI("/add-chain")
 	ctx.Request.SetBody([]byte(`{"chain":["AQID"]}`))
 
-	if got := POST(ctx, "add-chain", config.MustLoad(), testSubmitter()); got != -1 {
+	if got := POST(ctx, "add-chain", config.MustLoad(), testSubmitter(), health.New()); got != -1 {
 		t.Fatalf("expected -1 (timeout) for an already-expired request context, got %d", got)
 	}
 }
@@ -90,13 +91,14 @@ func newInmemHandlerClient(t *testing.T) *fasthttp.HostClient {
 	ln := fasthttputil.NewInmemoryListener()
 	sub := testSubmitter()
 	cfg := config.MustLoad()
+	h := health.New()
 	srv := &fasthttp.Server{
 		Handler: func(ctx *fasthttp.RequestCtx) {
 			path := strings.ToLower(string(ctx.Path()))
 			if len(path) > 0 {
 				path = path[1:]
 			}
-			if POST(ctx, path, cfg, sub) == -1 {
+			if POST(ctx, path, cfg, sub, h) == -1 {
 				ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
 			}
 		},

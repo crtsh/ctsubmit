@@ -51,13 +51,14 @@ func TestServerEndpoints(t *testing.T) {
 
 	mon := monitor.New(cfg)
 	sub := submitter.New(cfg, logger.Logger, mon)
+	h := health.New()
 
-	Run(cfg, sub, mon)
-	defer Shutdown()
+	Run(cfg, sub, mon, h, logger.Logger)
+	defer Shutdown(logger.Logger)
 
-	health.SetInitialDataReady() // so /readyz reports ready
+	h.SetInitialDataReady() // so /readyz reports ready
 
-	monClient := newInmemClient(t, func(ctx *fasthttp.RequestCtx) { monitoringHandler(ctx, cfg, mon) })
+	monClient := newInmemClient(t, func(ctx *fasthttp.RequestCtx) { monitoringHandler(ctx, cfg, mon, h, logger.Logger) })
 	for _, p := range []string{
 		"/livez", "/readyz", "/metrics",
 		"/ctsubmit.css", "/dashboard", "/favicon.ico", "/mascot.png",
@@ -67,7 +68,7 @@ func TestServerEndpoints(t *testing.T) {
 		doRequest(t, monClient, fasthttp.MethodGet, p, "")
 	}
 
-	webClient := newInmemClient(t, func(ctx *fasthttp.RequestCtx) { webHandler(ctx, cfg, sub, mon) })
+	webClient := newInmemClient(t, func(ctx *fasthttp.RequestCtx) { webHandler(ctx, cfg, sub, mon, h, logger.Logger) })
 	for _, p := range []string{
 		"/", "/ctsubmit.css", "/dashboard", "/favicon.ico", "/mascot.png",
 		"/usable_tls_logs.json", "/active_tls_logs.json", "/test_tls_logs.json", "/usable_bimi_logs.json",

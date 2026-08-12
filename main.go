@@ -35,10 +35,11 @@ func main() {
 
 	// Start the HTTP servers (Web and Monitoring) immediately.
 	// Readiness probes will report "not ready" until initial data is loaded.
-	mon := monitor.New(cfg)
+	mon := monitor.New(cfg, logger.Logger)
 	sub := submitter.New(cfg, logger.Logger, mon)
-	server.Run(cfg, sub, mon)
-	defer server.Shutdown()
+	h := health.New()
+	server.Run(cfg, sub, mon, h, logger.Logger)
+	defer server.Shutdown(logger.Logger)
 
 	// Start the various goroutines.
 	logger.ShutdownWG.Add(2)
@@ -49,7 +50,7 @@ func main() {
 	go func() {
 		mon.FetchEndpointUptimes()
 		mon.FetchAllSTHs()
-		health.SetInitialDataReady()
+		h.SetInitialDataReady()
 		logger.Logger.Info("Initial external data loaded; service is now ready")
 	}()
 

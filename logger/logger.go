@@ -90,7 +90,7 @@ func getRealClientIP(fhctx *fasthttp.RequestCtx) string {
 	return remoteAddr
 }
 
-func LogRequest(fhctx *fasthttp.RequestCtx) {
+func LogRequest(l *zap.Logger, fhctx *fasthttp.RequestCtx) {
 	// Add common logging details.
 	zf := []zap.Field{
 		zap.String("client_ip", getRealClientIP(fhctx)),
@@ -132,12 +132,12 @@ func LogRequest(fhctx *fasthttp.RequestCtx) {
 	// Write the log entry.
 	switch level {
 	case zap.ErrorLevel:
-		Logger.Error(msg, zf...)
+		l.Error(msg, zf...)
 	case zap.WarnLevel:
-		Logger.Warn(msg, zf...)
+		l.Warn(msg, zf...)
 	case zap.InfoLevel:
-		Logger.Info(msg, zf...)
+		l.Info(msg, zf...)
 	case zap.DebugLevel:
-		Logger.Debug(msg, zf...)
+		l.Debug(msg, zf...)
 	}
 }

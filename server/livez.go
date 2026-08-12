@@ -13,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func livez(ctx *fasthttp.RequestCtx, cfg *config.Settings) int {
+func livez(ctx *fasthttp.RequestCtx, cfg *config.Settings, h *health.Health) int {
 	ctx.SetUserValue("level", zap.DebugLevel)
 	ctx.SetUserValue("msg", "Liveness check")
 
@@ -23,7 +23,7 @@ func livez(ctx *fasthttp.RequestCtx, cfg *config.Settings) int {
 	doneChan := make(chan int, 1)
 	go func() {
 		statusCode := fasthttp.StatusOK
-		if !health.IsAlive(ctx) {
+		if !h.IsAlive(ctx) {
 			statusCode = fasthttp.StatusServiceUnavailable
 		}
 

@@ -111,9 +111,9 @@ func TestLogRequest(t *testing.T) {
 		ctx.Request.Header.SetContentType("application/json")
 		ctx.Request.Header.Set("User-Agent", "test-agent")
 		SetDetails(ctx, level, "msg", errors.New("e"), []zap.Field{zap.String("k", "v")})
-		LogRequest(ctx) // must not panic and must hit the level's switch arm.
+		LogRequest(Logger, ctx) // must not panic and must hit the level's switch arm.
 	}
 
 	// No user values set: defaults to Error level with an empty message.
-	LogRequest(&fasthttp.RequestCtx{})
+	LogRequest(Logger, &fasthttp.RequestCtx{})
 }

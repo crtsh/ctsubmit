@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/utils"
 
 	"github.com/crtsh/ctloglists"
@@ -198,7 +197,7 @@ func (s *Submitter) processHTTPResponse(strategyIdx int, submissionURL string, r
 		return
 	}
 
-	logger.Logger.Debug("Accepted SCT", zap.Int("strategyIdx", strategyIdx), zap.String("submissionURL", submissionURL), zap.String("logID", hex.EncodeToString(sct.LogID.KeyID[:])), zap.Uint64("timestamp", sct.Timestamp))
+	s.log.Debug("Accepted SCT", zap.Int("strategyIdx", strategyIdx), zap.String("submissionURL", submissionURL), zap.String("logID", hex.EncodeToString(sct.LogID.KeyID[:])), zap.Uint64("timestamp", sct.Timestamp))
 	events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventSuccess, response: addChainResponse, sct: sct, outcome: "Submission successful", timeTaken: timeTaken}
 	s.mon.RecordSubmissionOutcome(submissionURL, "success")
 }

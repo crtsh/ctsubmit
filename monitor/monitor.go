@@ -5,6 +5,8 @@ import (
 	"sync"
 
 	"github.com/crtsh/ctsubmit/config"
+
+	"go.uber.org/zap"
 )
 
 // Monitor owns the runtime state used to track CT log health: backoff caches,
@@ -16,6 +18,7 @@ import (
 // re-register them.
 type Monitor struct {
 	cfg *config.Settings
+	log *zap.Logger
 
 	backoffBadResponse  map[string]*backoffEntry
 	mutexBadResponse    sync.RWMutex
@@ -45,10 +48,16 @@ type Monitor struct {
 }
 
 // New builds a Monitor whose HTTP client timeouts come from cfg and whose
-// caches are pre-populated for all known logs in ctloglists.CrtshV3Active.
-func New(cfg *config.Settings) *Monitor {
+// caches are pre-populated for all known logs in ctloglists.CrtshV3Active. The
+// logger is optional; when omitted (e.g. in tests) a no-op logger is used.
+func New(cfg *config.Settings, log ...*zap.Logger) *Monitor {
+	l := zap.NewNop()
+	if len(log) > 0 && log[0] != nil {
+		l = log[0]
+	}
 	m := &Monitor{
 		cfg:                 cfg,
+		log:                 l,
 		backoffBadResponse:  make(map[string]*backoffEntry),
 		backoffTimeout:      make(map[string]*backoffEntry),
 		backoff5xx:          make(map[string]*backoffEntry),

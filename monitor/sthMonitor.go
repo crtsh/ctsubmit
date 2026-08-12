@@ -40,12 +40,12 @@ func (m *Monitor) initSTHData() {
 		for _, log := range operator.Logs {
 			pubKey, err := x509.ParsePKIXPublicKey(log.Key)
 			if err != nil {
-				logger.Logger.Error("could not parse public key", zap.String("url", log.URL), zap.ByteString("key", log.Key), zap.Error(err))
+				m.log.Error("could not parse public key", zap.String("url", log.URL), zap.ByteString("key", log.Key), zap.Error(err))
 				continue
 			}
 			sigVerifier, err := ctgo.NewSignatureVerifier(pubKey)
 			if err != nil {
-				logger.Logger.Error("could not create signature verifier", zap.String("url", log.URL), zap.ByteString("key", log.Key), zap.Error(err))
+				m.log.Error("could not create signature verifier", zap.String("url", log.URL), zap.ByteString("key", log.Key), zap.Error(err))
 				continue
 			}
 
@@ -59,14 +59,14 @@ func (m *Monitor) initSTHData() {
 
 			pubKey, err := x509.ParsePKIXPublicKey(tiledLog.Key)
 			if err != nil {
-				logger.Logger.Error("Failed to parse static log public key", zap.String("url", monitoringURL), zap.ByteString("key", tiledLog.Key), zap.Error(err))
+				m.log.Error("Failed to parse static log public key", zap.String("url", monitoringURL), zap.ByteString("key", tiledLog.Key), zap.Error(err))
 				continue
 			}
 
 			keyName := strings.TrimRight(strings.TrimPrefix(tiledLog.SubmissionURL, "https://"), "/")
 			verifier, err := sunlight.NewRFC6962Verifier(keyName, pubKey)
 			if err != nil {
-				logger.Logger.Error("Failed to create static log checkpoint verifier", zap.String("url", monitoringURL), zap.ByteString("key", tiledLog.Key), zap.Error(err))
+				m.log.Error("Failed to create static log checkpoint verifier", zap.String("url", monitoringURL), zap.ByteString("key", tiledLog.Key), zap.Error(err))
 				continue
 			}
 
@@ -76,7 +76,7 @@ func (m *Monitor) initSTHData() {
 }
 
 func (m *Monitor) STHMonitor(ctx context.Context) {
-	logger.Logger.Info("Started STHMonitor")
+	m.log.Info("Started STHMonitor")
 
 	for {
 		select {
@@ -84,7 +84,7 @@ func (m *Monitor) STHMonitor(ctx context.Context) {
 			m.FetchAllSTHs()
 		case <-ctx.Done():
 			logger.ShutdownWG.Done()
-			logger.Logger.Info("Stopped STHMonitor")
+			m.log.Info("Stopped STHMonitor")
 			return
 		}
 	}
@@ -137,7 +137,7 @@ func (m *Monitor) fetchSTH(logURL string, sd *STHData) {
 	timestamp = sthTimestamp
 	sd.Timestamp = &timestamp
 
-	logger.Logger.Debug("Fetched STH", zap.String("url", logURL), zap.Uint64("tree_size", sthResponse.TreeSize), zap.Duration("age", time.Since(*sd.Timestamp)))
+	m.log.Debug("Fetched STH", zap.String("url", logURL), zap.Uint64("tree_size", sthResponse.TreeSize), zap.Duration("age", time.Since(*sd.Timestamp)))
 }
 
 func (m *Monitor) fetchCheckpoint(submissionURL, monitoringURL string, sd *STHData) {
@@ -183,13 +183,13 @@ func (m *Monitor) fetchCheckpoint(submissionURL, monitoringURL string, sd *STHDa
 	timestamp := time.UnixMilli(timestampMillis)
 	sd.Timestamp = &timestamp
 
-	logger.Logger.Debug("Fetched checkpoint", zap.String("url", monitoringURL), zap.Uint64("tree_size", sd.TreeSize), zap.Duration("age", time.Since(*sd.Timestamp)))
+	m.log.Debug("Fetched checkpoint", zap.String("url", monitoringURL), zap.Uint64("tree_size", sd.TreeSize), zap.Duration("age", time.Since(*sd.Timestamp)))
 }
 
 func (m *Monitor) fetchResource(submissionURL, endpointURL string) []byte {
 	req, err := http.NewRequest(http.MethodGet, endpointURL, nil)
 	if err != nil {
-		logger.Logger.Error("Failed to create HTTP request", zap.String("url", endpointURL), zap.Error(err))
+		m.log.Error("Failed to create HTTP request", zap.String("url", endpointURL), zap.Error(err))
 		return nil
 	}
 

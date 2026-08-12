@@ -45,7 +45,7 @@ func getResponseFormat(fhctx *fasthttp.RequestCtx) config.ResponseFormat {
 	return config.DefaultResponseFormat
 }
 
-func POST(fhctx *fasthttp.RequestCtx, path string, cfg *config.Settings, sub *submitter.Submitter) int {
+func POST(fhctx *fasthttp.RequestCtx, path string, cfg *config.Settings, sub *submitter.Submitter, h *health.Health) int {
 	status := fasthttp.StatusBadRequest
 
 	ctx, cancel := context.WithDeadline(context.Background(), fhctx.Time().Add(time.Duration(cfg.Server.RequestTimeout)))
@@ -96,7 +96,7 @@ func POST(fhctx *fasthttp.RequestCtx, path string, cfg *config.Settings, sub *su
 	// If the request deadline was exceeded, update health tracking and return early.
 	if ctx.Err() != nil {
 		deadline, _ := ctx.Deadline()
-		health.UpdateLatestTimestamps(nil, nil, &deadline)
+		h.UpdateLatestTimestamps(nil, nil, &deadline)
 		return -1
 	}
 

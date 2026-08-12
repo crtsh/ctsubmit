@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/crtsh/ctsubmit/logger"
-
 	json "github.com/goccy/go-json"
 	ctgo "github.com/google/certificate-transparency-go"
 
@@ -78,7 +76,7 @@ func (s *Submitter) submit(ctx context.Context, sr *SubmissionRequest, strategy 
 		inFlightIndices[strategyIdx] = true
 		launchSeq++
 		strategy[strategyIdx].BeganAfter = time.Since(start)
-		logger.Logger.Debug("Launching submission", zap.Int("launchSeq", launchSeq), zap.Int("strategyIdx", strategyIdx), zap.String("url", strategy[strategyIdx].SubmissionURL), zap.String("operator", strategy[strategyIdx].Operator), zap.Int("inFlight", inFlight))
+		s.log.Debug("Launching submission", zap.Int("launchSeq", launchSeq), zap.Int("strategyIdx", strategyIdx), zap.String("url", strategy[strategyIdx].SubmissionURL), zap.String("operator", strategy[strategyIdx].Operator), zap.Int("inFlight", inFlight))
 
 		go func(idx int) {
 			s.submitToLog(submissionCtx, idx, strategy[idx].SubmissionURL, apiPath, requestBody, sha256IssuerSPKI, entryType, entryData, events)
@@ -148,7 +146,7 @@ func (s *Submitter) submit(ctx context.Context, sr *SubmissionRequest, strategy 
 				sm := strategy[strategyIdx]
 				if needRFC6962 && sm.LogType == LOGTYPE_RFC6962 || needStatic && sm.LogType == LOGTYPE_STATIC {
 					if qs.wouldHelp(sr, sm, strategy, inFlightIndices) {
-						logger.Logger.Debug("Next eligible helps quorum (log type preference)", zap.Int("strategyIdx", strategyIdx), zap.String("url", sm.SubmissionURL), zap.String("operator", sm.Operator), zap.Int("logType", int(sm.LogType)))
+						s.log.Debug("Next eligible helps quorum (log type preference)", zap.Int("strategyIdx", strategyIdx), zap.String("url", sm.SubmissionURL), zap.String("operator", sm.Operator), zap.Int("logType", int(sm.LogType)))
 						launchEligible(i)
 						return
 					}
@@ -161,7 +159,7 @@ func (s *Submitter) submit(ctx context.Context, sr *SubmissionRequest, strategy 
 			}
 			sm := strategy[strategyIdx]
 			if qs.wouldHelp(sr, sm, strategy, inFlightIndices) {
-				logger.Logger.Debug("Next eligible helps quorum", zap.Int("strategyIdx", strategyIdx), zap.String("url", sm.SubmissionURL), zap.String("operator", sm.Operator))
+				s.log.Debug("Next eligible helps quorum", zap.Int("strategyIdx", strategyIdx), zap.String("url", sm.SubmissionURL), zap.String("operator", sm.Operator))
 				launchEligible(i)
 				return
 			}
@@ -200,10 +198,10 @@ func (s *Submitter) submit(ctx context.Context, sr *SubmissionRequest, strategy 
 			} else {
 				strategy[event.strategyIdx].Outcome = "Submission successful, but doesn't help quorum"
 			}
-			logger.Logger.Debug("Submission success", zap.Int("strategyIdx", event.strategyIdx), zap.String("url", strategy[event.strategyIdx].SubmissionURL), zap.String("operator", strategy[event.strategyIdx].Operator), zap.Int("scts", len(qs.responses)), zap.Int("sctsNeeded", sr.SCTs), zap.Int("operators", len(qs.operators)), zap.Int("operatorsNeeded", sr.Operators), zap.Int("inFlight", inFlight))
+			s.log.Debug("Submission success", zap.Int("strategyIdx", event.strategyIdx), zap.String("url", strategy[event.strategyIdx].SubmissionURL), zap.String("operator", strategy[event.strategyIdx].Operator), zap.Int("scts", len(qs.responses)), zap.Int("sctsNeeded", sr.SCTs), zap.Int("operators", len(qs.operators)), zap.Int("operatorsNeeded", sr.Operators), zap.Int("inFlight", inFlight))
 
 			if qs.isQuorumMet(sr) {
-				logger.Logger.Debug("Quorum met; cancelling remaining in-flight submissions", zap.Int("inFlight", inFlight))
+				s.log.Debug("Quorum met; cancelling remaining in-flight submissions", zap.Int("inFlight", inFlight))
 				for _, indices := range []map[int]bool{inFlightIndices, slowInFlightIndices} {
 					for idx := range indices {
 						strategy[idx].Outcome = "Submission cancelled (quorum met)"
@@ -231,7 +229,7 @@ func (s *Submitter) submit(ctx context.Context, sr *SubmissionRequest, strategy 
 			delete(slowInFlightIndices, event.strategyIdx)
 			strategy[event.strategyIdx].Outcome = event.outcome
 			strategy[event.strategyIdx].TimeTaken = event.timeTaken
-			logger.Logger.Warn("Submission failure", zap.Int("strategyIdx", event.strategyIdx), zap.String("url", strategy[event.strategyIdx].SubmissionURL), zap.String("operator", strategy[event.strategyIdx].Operator), zap.Int("inFlight", inFlight))
+			s.log.Warn("Submission failure", zap.Int("strategyIdx", event.strategyIdx), zap.String("url", strategy[event.strategyIdx].SubmissionURL), zap.String("operator", strategy[event.strategyIdx].Operator), zap.Int("inFlight", inFlight))
 			if inFlight == 0 {
 				startNextEligible()
 			}
@@ -242,12 +240,12 @@ func (s *Submitter) submit(ctx context.Context, sr *SubmissionRequest, strategy 
 			// eligible log (the slow submission continues and might still succeed).
 			delete(inFlightIndices, event.strategyIdx)
 			slowInFlightIndices[event.strategyIdx] = true
-			logger.Logger.Warn("Try-next threshold exceeded; launching additional candidate", zap.Int("strategyIdx", event.strategyIdx), zap.String("url", strategy[event.strategyIdx].SubmissionURL), zap.String("operator", strategy[event.strategyIdx].Operator))
+			s.log.Warn("Try-next threshold exceeded; launching additional candidate", zap.Int("strategyIdx", event.strategyIdx), zap.String("url", strategy[event.strategyIdx].SubmissionURL), zap.String("operator", strategy[event.strategyIdx].Operator))
 			startNextEligible()
 
 		case eventSlow:
 			s.mon.RecordSlowResponse(strategy[event.strategyIdx].SubmissionURL)
-			logger.Logger.Warn("Slow response threshold exceeded", zap.Int("strategyIdx", event.strategyIdx), zap.String("url", strategy[event.strategyIdx].SubmissionURL), zap.String("operator", strategy[event.strategyIdx].Operator))
+			s.log.Warn("Slow response threshold exceeded", zap.Int("strategyIdx", event.strategyIdx), zap.String("url", strategy[event.strategyIdx].SubmissionURL), zap.String("operator", strategy[event.strategyIdx].Operator))
 		}
 	}
 

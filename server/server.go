@@ -7,6 +7,7 @@ import (
 
 	"github.com/crtsh/ctsubmit/config"
 	"github.com/crtsh/ctsubmit/endpoint"
+	"github.com/crtsh/ctsubmit/health"
 	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/loglists"
 	"github.com/crtsh/ctsubmit/monitor"
@@ -23,7 +24,7 @@ import (
 var webServer *fasthttp.Server
 var webRequestLatency prometheus.Summary
 
-func webHandler(fhctx *fasthttp.RequestCtx, cfg *config.Settings, sub *submitter.Submitter, mon *monitor.Monitor) {
+func webHandler(fhctx *fasthttp.RequestCtx, cfg *config.Settings, sub *submitter.Submitter, mon *monitor.Monitor, h *health.Health, log *zap.Logger) {
 	endpointPath := strings.ToLower(utils.B2S(fhctx.Path())[1:])
 
 	if fhctx.IsGet() {
@@ -54,7 +55,7 @@ func webHandler(fhctx *fasthttp.RequestCtx, cfg *config.Settings, sub *submitter
 		}
 
 	} else if fhctx.IsPost() {
-		if request.POST(fhctx, endpointPath, cfg, sub) == -1 {
+		if request.POST(fhctx, endpointPath, cfg, sub, h) == -1 {
 			// Request timed out.
 			fhctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
 			fhctx.SetContentType("text/plain")
@@ -67,14 +68,14 @@ func webHandler(fhctx *fasthttp.RequestCtx, cfg *config.Settings, sub *submitter
 		logger.SetDetails(fhctx, zap.InfoLevel, "Method not allowed", nil, nil)
 	}
 
-	logger.LogRequest(fhctx)
+	logger.LogRequest(log, fhctx)
 	webRequestLatency.Observe(float64(time.Since(fhctx.Time())) / float64(time.Second))
 }
 
 var monitoringServer *fasthttp.Server
 var monitoringRequestLatency prometheus.Summary
 
-func monitoringHandler(fhctx *fasthttp.RequestCtx, cfg *config.Settings, mon *monitor.Monitor) {
+func monitoringHandler(fhctx *fasthttp.RequestCtx, cfg *config.Settings, mon *monitor.Monitor, h *health.Health, log *zap.Logger) {
 	status := 0
 	switch strings.ToLower(utils.B2S(fhctx.Path())[1:]) {
 	case endpoint.ENDPOINTSTRING_CSS:
@@ -86,9 +87,9 @@ func monitoringHandler(fhctx *fasthttp.RequestCtx, cfg *config.Settings, mon *mo
 	case endpoint.ENDPOINTSTRING_MASCOT:
 		mascot(fhctx)
 	case endpoint.ENDPOINTSTRING_LIVEZ:
-		status = livez(fhctx, cfg)
+		status = livez(fhctx, cfg, h)
 	case endpoint.ENDPOINTSTRING_READYZ:
-		status = readyz(fhctx, cfg)
+		status = readyz(fhctx, cfg, h)
 	case endpoint.ENDPOINTSTRING_METRICS:
 		status = metrics(fhctx, cfg)
 	case endpoint.ENDPOINTSTRING_BUILD:
@@ -121,13 +122,13 @@ func monitoringHandler(fhctx *fasthttp.RequestCtx, cfg *config.Settings, mon *mo
 		defer fhctx.TimeoutErrorWithResponse(&fhctx.Response) // The logger needs to run first.
 	}
 
-	logger.LogRequest(fhctx)
+	logger.LogRequest(log, fhctx)
 	monitoringRequestLatency.Observe(float64(time.Since(fhctx.Time())) / float64(time.Second))
 }
 
-func Run(cfg *config.Settings, sub *submitter.Submitter, mon *monitor.Monitor) {
+func Run(cfg *config.Settings, sub *submitter.Submitter, mon *monitor.Monitor, h *health.Health, log *zap.Logger) {
 	webServer = &fasthttp.Server{
-		Handler:               func(fhctx *fasthttp.RequestCtx) { webHandler(fhctx, cfg, sub, mon) },
+		Handler:               func(fhctx *fasthttp.RequestCtx) { webHandler(fhctx, cfg, sub, mon, h, log) },
 		CloseOnShutdown:       true,
 		ReadTimeout:           cfg.Server.ReadTimeout,
 		IdleTimeout:           cfg.Server.IdleTimeout,
@@ -135,24 +136,24 @@ func Run(cfg *config.Settings, sub *submitter.Submitter, mon *monitor.Monitor) {
 		NoDefaultServerHeader: true,
 	}
 	if cfg.Server.WebserverPort != 0 {
-		logger.Logger.Info("Starting WebServer", zap.Int("port", cfg.Server.WebserverPort))
+		log.Info("Starting WebServer", zap.Int("port", cfg.Server.WebserverPort))
 		go func() {
 			if err := webServer.ListenAndServe(fmt.Sprintf(":%d", cfg.Server.WebserverPort)); err != nil {
-				logger.Logger.Fatal("webServer.ListenAndServe failed", zap.Error(err))
+				log.Fatal("webServer.ListenAndServe failed", zap.Error(err))
 			}
 		}()
 	}
 	if cfg.Server.WebserverPath != "" {
-		logger.Logger.Info("Starting WebServer", zap.String("path", cfg.Server.WebserverPath))
+		log.Info("Starting WebServer", zap.String("path", cfg.Server.WebserverPath))
 		go func() {
 			if err := webServer.ListenAndServeUNIX(cfg.Server.WebserverPath, cfg.Server.SocketPermissions); err != nil {
-				logger.Logger.Fatal("webServer.ListenAndServeUNIX failed", zap.Error(err))
+				log.Fatal("webServer.ListenAndServeUNIX failed", zap.Error(err))
 			}
 		}()
 	}
 
 	monitoringServer = &fasthttp.Server{
-		Handler:               func(fhctx *fasthttp.RequestCtx) { monitoringHandler(fhctx, cfg, mon) },
+		Handler:               func(fhctx *fasthttp.RequestCtx) { monitoringHandler(fhctx, cfg, mon, h, log) },
 		CloseOnShutdown:       true,
 		ReadTimeout:           cfg.Server.ReadTimeout,
 		IdleTimeout:           cfg.Server.IdleTimeout,
@@ -162,35 +163,35 @@ func Run(cfg *config.Settings, sub *submitter.Submitter, mon *monitor.Monitor) {
 	if cfg.Server.MonitoringPort != 0 {
 		listenAddr := fmt.Sprintf("%s:%d", cfg.Server.MonitoringAddress, cfg.Server.MonitoringPort)
 		if cfg.Server.MonitoringAddress == "" || cfg.Server.MonitoringAddress == "0.0.0.0" {
-			logger.Logger.Warn("MonitoringServer is binding to all interfaces; set server.monitoringAddress (e.g. \"127.0.0.1\") to restrict access in hardened/sidecar deployments", zap.Int("port", cfg.Server.MonitoringPort))
+			log.Warn("MonitoringServer is binding to all interfaces; set server.monitoringAddress (e.g. \"127.0.0.1\") to restrict access in hardened/sidecar deployments", zap.Int("port", cfg.Server.MonitoringPort))
 		}
-		logger.Logger.Info("Starting MonitoringServer", zap.String("address", listenAddr))
+		log.Info("Starting MonitoringServer", zap.String("address", listenAddr))
 		go func() {
 			if err := monitoringServer.ListenAndServe(listenAddr); err != nil {
-				logger.Logger.Fatal("monitoringServer.ListenAndServe failed", zap.Error(err))
+				log.Fatal("monitoringServer.ListenAndServe failed", zap.Error(err))
 			}
 		}()
 	}
 	if cfg.Server.MonitoringPath != "" {
-		logger.Logger.Info("Starting MonitoringServer", zap.String("path", cfg.Server.MonitoringPath))
+		log.Info("Starting MonitoringServer", zap.String("path", cfg.Server.MonitoringPath))
 		go func() {
 			if err := monitoringServer.ListenAndServeUNIX(cfg.Server.MonitoringPath, cfg.Server.SocketPermissions); err != nil {
-				logger.Logger.Fatal("monitoringServer.ListenAndServeUNIX failed", zap.Error(err))
+				log.Fatal("monitoringServer.ListenAndServeUNIX failed", zap.Error(err))
 			}
 		}()
 	}
 }
 
-func Shutdown() {
-	logger.Logger.Info("Stopping WebServer (gracefully)")
+func Shutdown(log *zap.Logger) {
+	log.Info("Stopping WebServer (gracefully)")
 	if err := webServer.Shutdown(); err != nil {
-		logger.Logger.Error("webServer.Shutdown failed", zap.Error(err))
+		log.Error("webServer.Shutdown failed", zap.Error(err))
 	}
-	logger.Logger.Info("Stopped WebServer")
+	log.Info("Stopped WebServer")
 
-	logger.Logger.Info("Stopping MonitoringServer (gracefully)")
+	log.Info("Stopping MonitoringServer (gracefully)")
 	if err := monitoringServer.Shutdown(); err != nil {
-		logger.Logger.Error("monitoringServer.Shutdown failed", zap.Error(err))
+		log.Error("monitoringServer.Shutdown failed", zap.Error(err))
 	}
-	logger.Logger.Info("Stopped MonitoringServer")
+	log.Info("Stopped MonitoringServer")
 }
