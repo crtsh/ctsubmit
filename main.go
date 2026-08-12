@@ -28,7 +28,7 @@ func main() {
 	// Inject the already-loaded config.Config global rather than config.Load(); see config.Load for why.
 	mon := monitor.New(&config.Config)
 	sub := submitter.New(&config.Config, logger.Logger, mon)
-	server.Run(sub, mon)
+	server.Run(&config.Config, sub, mon)
 	defer server.Shutdown()
 
 	// Start the various goroutines.

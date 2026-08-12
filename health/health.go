@@ -66,7 +66,7 @@ func IsAlive(ctx *fasthttp.RequestCtx) bool {
 	return !nonErrorTimestamp.Before(errorTimestamp)
 }
 
-func IsReady(ctx *fasthttp.RequestCtx) bool {
+func IsReady(ctx *fasthttp.RequestCtx, cfg *config.Settings) bool {
 	if !initialDataReady.Load() {
 		ctx.SetUserValue("zap_fields", []zap.Field{
 			zap.Bool("initial_data_ready", false),
@@ -81,5 +81,5 @@ func IsReady(ctx *fasthttp.RequestCtx) bool {
 	ctx.SetUserValue("zap_fields", []zap.Field{
 		zap.Time("latest_busy", busyTimestamp),
 	})
-	return busyTimestamp.Add(config.Config.Server.RememberBusyTimeout).Before(time.Now())
+	return busyTimestamp.Add(cfg.Server.RememberBusyTimeout).Before(time.Now())
 }

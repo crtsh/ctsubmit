@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/crtsh/ctsubmit/config"
+
 	"github.com/valyala/fasthttp"
 )
 
@@ -20,12 +22,12 @@ func TestIsReadyRequiresInitialData(t *testing.T) {
 	resetHealth()
 	ctx := &fasthttp.RequestCtx{}
 
-	if IsReady(ctx) {
+	if IsReady(ctx, &config.Config) {
 		t.Fatal("expected not ready before initial data is loaded")
 	}
 
 	SetInitialDataReady()
-	if !IsReady(ctx) {
+	if !IsReady(ctx, &config.Config) {
 		t.Fatal("expected ready after initial data is loaded with no recent busy")
 	}
 }
@@ -38,7 +40,7 @@ func TestIsReadyReflectsRecentBusy(t *testing.T) {
 	UpdateLatestTimestamps(nil, nil, &now)
 
 	ctx := &fasthttp.RequestCtx{}
-	if IsReady(ctx) {
+	if IsReady(ctx, &config.Config) {
 		t.Fatal("expected not ready immediately after a busy timestamp")
 	}
 }

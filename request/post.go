@@ -45,10 +45,10 @@ func getResponseFormat(fhctx *fasthttp.RequestCtx) config.ResponseFormat {
 	return config.DefaultResponseFormat
 }
 
-func POST(fhctx *fasthttp.RequestCtx, path string, sub *submitter.Submitter) int {
+func POST(fhctx *fasthttp.RequestCtx, path string, cfg *config.Settings, sub *submitter.Submitter) int {
 	status := fasthttp.StatusBadRequest
 
-	ctx, cancel := context.WithDeadline(context.Background(), fhctx.Time().Add(time.Duration(config.Config.Server.RequestTimeout)))
+	ctx, cancel := context.WithDeadline(context.Background(), fhctx.Time().Add(time.Duration(cfg.Server.RequestTimeout)))
 	defer cancel()
 
 	// Read all inputs from fhctx before any potentially long-running work.
@@ -110,7 +110,7 @@ func POST(fhctx *fasthttp.RequestCtx, path string, sub *submitter.Submitter) int
 		status = sendHTMLResponse(fhctx, submissionResponse, err)
 	case config.RESPONSEFORMAT_JSON:
 		if err == nil {
-			status = sendJSONResponse(fhctx, submissionResponse)
+			status = sendJSONResponse(fhctx, cfg, submissionResponse)
 		} else {
 			status = sendJSONProblem(fhctx, status, err)
 		}
@@ -148,13 +148,13 @@ func sendHTMLResponse(fhctx *fasthttp.RequestCtx, submissionResponse *submitter.
 	return fasthttp.StatusOK
 }
 
-func sendJSONResponse(fhctx *fasthttp.RequestCtx, submissionResponse *submitter.SubmissionResponse) int {
+func sendJSONResponse(fhctx *fasthttp.RequestCtx, cfg *config.Settings, submissionResponse *submitter.SubmissionResponse) int {
 	// Encode and send the results as JSON.
 	fhctx.SetContentType("application/json; charset=UTF-8")
 
 	j := json.NewEncoder(fhctx)
 	j.SetEscapeHTML(false)
-	if config.Config.Response.JsonPrettyPrint {
+	if cfg.Response.JsonPrettyPrint {
 		j.SetIndent("", "  ")
 	}
 	if err := j.Encode(submissionResponse); err != nil {

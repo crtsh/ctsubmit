@@ -13,12 +13,12 @@ import (
 	"go.uber.org/zap"
 )
 
-func configInfo(ctx *fasthttp.RequestCtx) {
+func configInfo(ctx *fasthttp.RequestCtx, cfg *config.Settings) {
 	ctx.SetUserValue("level", zap.InfoLevel)
 	ctx.SetUserValue("msg", "Configuration information")
 
 	jsonString := ""
-	if jmi, err := json.MarshalIndent(config.Config, "", "&nbsp; &nbsp; "); err != nil {
+	if jmi, err := json.MarshalIndent(cfg, "", "&nbsp; &nbsp; "); err != nil {
 		jsonString = fmt.Sprintf("Error obtaining configuration information: %v", err)
 	} else {
 		jsonString = strings.ReplaceAll(utils.B2S(jmi), "\n", "<BR>")

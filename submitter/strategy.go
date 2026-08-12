@@ -91,7 +91,7 @@ func (s *Submitter) devizeSubmissionStrategy(compatibleLogList *loglist3.LogList
 
 		// Disprefer logs with endpoint uptimes below configurable thresholds.
 		if strategy[i].Bucket == NEUTRAL {
-			strategy[i].dispreferIfLowUptime(entryType, s.mon)
+			strategy[i].dispreferIfLowUptime(entryType, s.mon, s.cfg)
 		}
 
 		// Disprefer logs from which we've received a bad response recently.
@@ -166,7 +166,7 @@ func (sm *StrategyMember) dispreferIfMMDBlown(mon *monitor.Monitor) {
 	}
 }
 
-func (sm *StrategyMember) dispreferIfLowUptime(entryType ctgo.LogEntryType, mon *monitor.Monitor) {
+func (sm *StrategyMember) dispreferIfLowUptime(entryType ctgo.LogEntryType, mon *monitor.Monitor, cfg *config.Settings) {
 	var endpointUptime float64
 	var ok bool
 	if entryType == ctgo.PrecertLogEntryType {
@@ -175,15 +175,15 @@ func (sm *StrategyMember) dispreferIfLowUptime(entryType ctgo.LogEntryType, mon 
 		endpointUptime, ok = mon.GetEndpointUptime24h(sm.SubmissionURL, "add-chain")
 	}
 
-	if ok && endpointUptime < config.Config.Strategy.UptimeThreshold.SubmitEndpoint24h {
+	if ok && endpointUptime < cfg.Strategy.UptimeThreshold.SubmitEndpoint24h {
 		sm.Bucket = DISPREFERRED_LOWUPTIME
-		sm.DispreferredDetail = fmt.Sprintf("Submission endpoint 24h uptime below threshold (%.4f%% < %.4f%%)", endpointUptime, config.Config.Strategy.UptimeThreshold.SubmitEndpoint24h)
+		sm.DispreferredDetail = fmt.Sprintf("Submission endpoint 24h uptime below threshold (%.4f%% < %.4f%%)", endpointUptime, cfg.Strategy.UptimeThreshold.SubmitEndpoint24h)
 	}
 
 	endpointUptime, ok = mon.GetEndpointUptime90d(sm.SubmissionURL, "LOWEST")
-	if ok && endpointUptime < config.Config.Strategy.UptimeThreshold.LowestEndpoint90d {
+	if ok && endpointUptime < cfg.Strategy.UptimeThreshold.LowestEndpoint90d {
 		sm.Bucket = DISPREFERRED_LOWUPTIME
-		sm.DispreferredDetail = fmt.Sprintf("Lowest endpoint 90d uptime below threshold (%.4f%% < %.4f%%)", endpointUptime, config.Config.Strategy.UptimeThreshold.LowestEndpoint90d)
+		sm.DispreferredDetail = fmt.Sprintf("Lowest endpoint 90d uptime below threshold (%.4f%% < %.4f%%)", endpointUptime, cfg.Strategy.UptimeThreshold.LowestEndpoint90d)
 	}
 }
 

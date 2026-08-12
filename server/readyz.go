@@ -13,17 +13,17 @@ import (
 	"go.uber.org/zap"
 )
 
-func readyz(ctx *fasthttp.RequestCtx) int {
+func readyz(ctx *fasthttp.RequestCtx, cfg *config.Settings) int {
 	ctx.SetUserValue("level", zap.DebugLevel)
 	ctx.SetUserValue("msg", "Readiness check")
 
-	ctxWithDeadline, cancel := context.WithDeadline(context.Background(), ctx.Time().Add(time.Duration(config.Config.Server.ReadyzTimeout)))
+	ctxWithDeadline, cancel := context.WithDeadline(context.Background(), ctx.Time().Add(time.Duration(cfg.Server.ReadyzTimeout)))
 	defer cancel()
 
 	doneChan := make(chan int, 1)
 	go func() {
 		statusCode := fasthttp.StatusOK
-		if !health.IsReady(ctx) {
+		if !health.IsReady(ctx, cfg) {
 			statusCode = fasthttp.StatusServiceUnavailable
 		}
 

@@ -22,11 +22,11 @@ func init() {
 
 var prometheusHandler = fasthttpadaptor.NewFastHTTPHandler(promhttp.Handler())
 
-func metrics(ctx *fasthttp.RequestCtx) int {
+func metrics(ctx *fasthttp.RequestCtx, cfg *config.Settings) int {
 	ctx.SetUserValue("level", zap.DebugLevel)
 	ctx.SetUserValue("msg", "Metrics")
 
-	ctxWithDeadline, cancel := context.WithDeadline(context.Background(), ctx.Time().Add(time.Duration(config.Config.Server.MetricsTimeout)))
+	ctxWithDeadline, cancel := context.WithDeadline(context.Background(), ctx.Time().Add(time.Duration(cfg.Server.MetricsTimeout)))
 	defer cancel()
 
 	doneChan := make(chan int, 1)

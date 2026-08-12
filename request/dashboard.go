@@ -1,6 +1,7 @@
 package request
 
 import (
+	"github.com/crtsh/ctsubmit/config"
 	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/loglists"
 	"github.com/crtsh/ctsubmit/monitor"
@@ -12,7 +13,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func Dashboard(fhctx *fasthttp.RequestCtx, mon *monitor.Monitor) {
+func Dashboard(fhctx *fasthttp.RequestCtx, cfg *config.Settings, mon *monitor.Monitor) {
 	var logList *loglist3.LogList
 	logListName := ""
 	switch paramS(fhctx, "loglist") {
@@ -62,5 +63,5 @@ func Dashboard(fhctx *fasthttp.RequestCtx, mon *monitor.Monitor) {
 	logger.SetDetails(fhctx, zap.InfoLevel, "Dashboard", nil, nil)
 	fhctx.SetContentType("text/html")
 	fhctx.SetStatusCode(fasthttp.StatusOK)
-	templates.WriteDashboardPage(fhctx, mon, logListName, logs)
+	templates.WriteDashboardPage(fhctx, cfg, mon, logListName, logs)
 }

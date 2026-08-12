@@ -13,11 +13,11 @@ import (
 	"go.uber.org/zap"
 )
 
-func livez(ctx *fasthttp.RequestCtx) int {
+func livez(ctx *fasthttp.RequestCtx, cfg *config.Settings) int {
 	ctx.SetUserValue("level", zap.DebugLevel)
 	ctx.SetUserValue("msg", "Liveness check")
 
-	ctxWithDeadline, cancel := context.WithDeadline(context.Background(), ctx.Time().Add(time.Duration(config.Config.Server.LivezTimeout)))
+	ctxWithDeadline, cancel := context.WithDeadline(context.Background(), ctx.Time().Add(time.Duration(cfg.Server.LivezTimeout)))
 	defer cancel()
 
 	doneChan := make(chan int, 1)

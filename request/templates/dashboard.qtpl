@@ -16,7 +16,7 @@ type DashboardLog struct {
 }
 %}
 
-{% func DashboardPage(mon *monitor.Monitor, logListName string, logs []DashboardLog) %}
+{% func DashboardPage(cfg *config.Settings, mon *monitor.Monitor, logListName string, logs []DashboardLog) %}
 {%= Head("CT Submission Proxy") %}
   <STYLE type="text/css">
     table tr:nth-child(2n+4) {
@@ -52,7 +52,7 @@ type DashboardLog struct {
             <TH>Reason</TH>
           </TR>
 {% for _, log := range logs %}
-{%= LogDetailRow(log, mon) %}
+{%= LogDetailRow(log, cfg, mon) %}
 {% endfor %}
         </TABLE>
       </TD>
@@ -67,7 +67,7 @@ type DashboardLog struct {
 </HTML>
 {% endfunc %}
 
-{% func LogDetailRow(log DashboardLog, mon *monitor.Monitor) %}
+{% func LogDetailRow(log DashboardLog, cfg *config.Settings, mon *monitor.Monitor) %}
 {% code
 	sthAgeString := "?"
 	treeSizeString := "?"
@@ -86,11 +86,11 @@ type DashboardLog struct {
 	var percentage24h, percentage90d string
 	up24h, ok24 := mon.GetEndpointUptime24h(subURL, "LOWEST")
 	if ok24 {
-		percentage24h = PercentageString(up24h, config.Config.Strategy.UptimeThreshold.SubmitEndpoint24h, 0)
+		percentage24h = PercentageString(up24h, cfg.Strategy.UptimeThreshold.SubmitEndpoint24h, 0)
 	}
 	up90d, ok90 := mon.GetEndpointUptime90d(subURL, "LOWEST")
 	if ok90 {
-		percentage90d = PercentageString(up90d, config.Config.Strategy.UptimeThreshold.LowestEndpoint90d, 99)
+		percentage90d = PercentageString(up90d, cfg.Strategy.UptimeThreshold.LowestEndpoint90d, 99)
 	}
 
 	backoff, _ := mon.GetBadResponseBackoff(subURL)

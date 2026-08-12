@@ -23,7 +23,7 @@ import (
 var webServer *fasthttp.Server
 var webRequestLatency prometheus.Summary
 
-func webHandler(fhctx *fasthttp.RequestCtx, sub *submitter.Submitter, mon *monitor.Monitor) {
+func webHandler(fhctx *fasthttp.RequestCtx, cfg *config.Settings, sub *submitter.Submitter, mon *monitor.Monitor) {
 	endpointPath := strings.ToLower(utils.B2S(fhctx.Path())[1:])
 
 	if fhctx.IsGet() {
@@ -31,7 +31,7 @@ func webHandler(fhctx *fasthttp.RequestCtx, sub *submitter.Submitter, mon *monit
 		case endpoint.ENDPOINTSTRING_CSS:
 			request.CSS(fhctx)
 		case endpoint.ENDPOINTSTRING_DASHBOARD:
-			request.Dashboard(fhctx, mon)
+			request.Dashboard(fhctx, cfg, mon)
 		case endpoint.ENDPOINTSTRING_FAVICON:
 			favicon(fhctx)
 		case endpoint.ENDPOINTSTRING_FRONTPAGE:
@@ -54,7 +54,7 @@ func webHandler(fhctx *fasthttp.RequestCtx, sub *submitter.Submitter, mon *monit
 		}
 
 	} else if fhctx.IsPost() {
-		if request.POST(fhctx, endpointPath, sub) == -1 {
+		if request.POST(fhctx, endpointPath, cfg, sub) == -1 {
 			// Request timed out.
 			fhctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
 			fhctx.SetContentType("text/plain")
@@ -74,37 +74,37 @@ func webHandler(fhctx *fasthttp.RequestCtx, sub *submitter.Submitter, mon *monit
 var monitoringServer *fasthttp.Server
 var monitoringRequestLatency prometheus.Summary
 
-func monitoringHandler(fhctx *fasthttp.RequestCtx, mon *monitor.Monitor) {
+func monitoringHandler(fhctx *fasthttp.RequestCtx, cfg *config.Settings, mon *monitor.Monitor) {
 	status := 0
 	switch strings.ToLower(utils.B2S(fhctx.Path())[1:]) {
 	case endpoint.ENDPOINTSTRING_CSS:
 		request.CSS(fhctx)
 	case endpoint.ENDPOINTSTRING_DASHBOARD:
-		request.Dashboard(fhctx, mon)
+		request.Dashboard(fhctx, cfg, mon)
 	case endpoint.ENDPOINTSTRING_FAVICON:
 		favicon(fhctx)
 	case endpoint.ENDPOINTSTRING_MASCOT:
 		mascot(fhctx)
 	case endpoint.ENDPOINTSTRING_LIVEZ:
-		status = livez(fhctx)
+		status = livez(fhctx, cfg)
 	case endpoint.ENDPOINTSTRING_READYZ:
-		status = readyz(fhctx)
+		status = readyz(fhctx, cfg)
 	case endpoint.ENDPOINTSTRING_METRICS:
-		status = metrics(fhctx)
+		status = metrics(fhctx, cfg)
 	case endpoint.ENDPOINTSTRING_BUILD:
-		if config.Config.Server.EnableDebugEndpoints {
+		if cfg.Server.EnableDebugEndpoints {
 			buildInfo(fhctx)
 		} else {
 			fhctx.NotFound()
 		}
 	case endpoint.ENDPOINTSTRING_CONFIG:
-		if config.Config.Server.EnableDebugEndpoints {
-			configInfo(fhctx)
+		if cfg.Server.EnableDebugEndpoints {
+			configInfo(fhctx, cfg)
 		} else {
 			fhctx.NotFound()
 		}
 	default:
-		if config.Config.Server.EnableDebugEndpoints && profilingHandler(fhctx) {
+		if cfg.Server.EnableDebugEndpoints && profilingHandler(fhctx) {
 			// Handled by pprof.
 		} else {
 			fhctx.NotFound()
@@ -125,44 +125,44 @@ func monitoringHandler(fhctx *fasthttp.RequestCtx, mon *monitor.Monitor) {
 	monitoringRequestLatency.Observe(float64(time.Since(fhctx.Time())) / float64(time.Second))
 }
 
-func Run(sub *submitter.Submitter, mon *monitor.Monitor) {
+func Run(cfg *config.Settings, sub *submitter.Submitter, mon *monitor.Monitor) {
 	webServer = &fasthttp.Server{
-		Handler:               func(fhctx *fasthttp.RequestCtx) { webHandler(fhctx, sub, mon) },
+		Handler:               func(fhctx *fasthttp.RequestCtx) { webHandler(fhctx, cfg, sub, mon) },
 		CloseOnShutdown:       true,
-		ReadTimeout:           config.Config.Server.ReadTimeout,
-		IdleTimeout:           config.Config.Server.IdleTimeout,
-		DisableKeepalive:      config.Config.Server.DisableKeepalive,
+		ReadTimeout:           cfg.Server.ReadTimeout,
+		IdleTimeout:           cfg.Server.IdleTimeout,
+		DisableKeepalive:      cfg.Server.DisableKeepalive,
 		NoDefaultServerHeader: true,
 	}
-	if config.Config.Server.WebserverPort != 0 {
-		logger.Logger.Info("Starting WebServer", zap.Int("port", config.Config.Server.WebserverPort))
+	if cfg.Server.WebserverPort != 0 {
+		logger.Logger.Info("Starting WebServer", zap.Int("port", cfg.Server.WebserverPort))
 		go func() {
-			if err := webServer.ListenAndServe(fmt.Sprintf(":%d", config.Config.Server.WebserverPort)); err != nil {
+			if err := webServer.ListenAndServe(fmt.Sprintf(":%d", cfg.Server.WebserverPort)); err != nil {
 				logger.Logger.Fatal("webServer.ListenAndServe failed", zap.Error(err))
 			}
 		}()
 	}
-	if config.Config.Server.WebserverPath != "" {
-		logger.Logger.Info("Starting WebServer", zap.String("path", config.Config.Server.WebserverPath))
+	if cfg.Server.WebserverPath != "" {
+		logger.Logger.Info("Starting WebServer", zap.String("path", cfg.Server.WebserverPath))
 		go func() {
-			if err := webServer.ListenAndServeUNIX(config.Config.Server.WebserverPath, config.Config.Server.SocketPermissions); err != nil {
+			if err := webServer.ListenAndServeUNIX(cfg.Server.WebserverPath, cfg.Server.SocketPermissions); err != nil {
 				logger.Logger.Fatal("webServer.ListenAndServeUNIX failed", zap.Error(err))
 			}
 		}()
 	}
 
 	monitoringServer = &fasthttp.Server{
-		Handler:               func(fhctx *fasthttp.RequestCtx) { monitoringHandler(fhctx, mon) },
+		Handler:               func(fhctx *fasthttp.RequestCtx) { monitoringHandler(fhctx, cfg, mon) },
 		CloseOnShutdown:       true,
-		ReadTimeout:           config.Config.Server.ReadTimeout,
-		IdleTimeout:           config.Config.Server.IdleTimeout,
-		DisableKeepalive:      config.Config.Server.DisableKeepalive,
+		ReadTimeout:           cfg.Server.ReadTimeout,
+		IdleTimeout:           cfg.Server.IdleTimeout,
+		DisableKeepalive:      cfg.Server.DisableKeepalive,
 		NoDefaultServerHeader: true,
 	}
-	if config.Config.Server.MonitoringPort != 0 {
-		listenAddr := fmt.Sprintf("%s:%d", config.Config.Server.MonitoringAddress, config.Config.Server.MonitoringPort)
-		if config.Config.Server.MonitoringAddress == "" || config.Config.Server.MonitoringAddress == "0.0.0.0" {
-			logger.Logger.Warn("MonitoringServer is binding to all interfaces; set server.monitoringAddress (e.g. \"127.0.0.1\") to restrict access in hardened/sidecar deployments", zap.Int("port", config.Config.Server.MonitoringPort))
+	if cfg.Server.MonitoringPort != 0 {
+		listenAddr := fmt.Sprintf("%s:%d", cfg.Server.MonitoringAddress, cfg.Server.MonitoringPort)
+		if cfg.Server.MonitoringAddress == "" || cfg.Server.MonitoringAddress == "0.0.0.0" {
+			logger.Logger.Warn("MonitoringServer is binding to all interfaces; set server.monitoringAddress (e.g. \"127.0.0.1\") to restrict access in hardened/sidecar deployments", zap.Int("port", cfg.Server.MonitoringPort))
 		}
 		logger.Logger.Info("Starting MonitoringServer", zap.String("address", listenAddr))
 		go func() {
@@ -171,10 +171,10 @@ func Run(sub *submitter.Submitter, mon *monitor.Monitor) {
 			}
 		}()
 	}
-	if config.Config.Server.MonitoringPath != "" {
-		logger.Logger.Info("Starting MonitoringServer", zap.String("path", config.Config.Server.MonitoringPath))
+	if cfg.Server.MonitoringPath != "" {
+		logger.Logger.Info("Starting MonitoringServer", zap.String("path", cfg.Server.MonitoringPath))
 		go func() {
-			if err := monitoringServer.ListenAndServeUNIX(config.Config.Server.MonitoringPath, config.Config.Server.SocketPermissions); err != nil {
+			if err := monitoringServer.ListenAndServeUNIX(cfg.Server.MonitoringPath, cfg.Server.SocketPermissions); err != nil {
 				logger.Logger.Fatal("monitoringServer.ListenAndServeUNIX failed", zap.Error(err))
 			}
 		}()
