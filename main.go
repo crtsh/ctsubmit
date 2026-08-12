@@ -17,13 +17,12 @@ import (
 )
 
 func main() {
-	// Load configuration and initialize the logger. config.Load is the single
-	// source of configuration; the result is injected into everything below.
+	// Load configuration and initialize the logger. config.Load is the single source of configuration; the result is injected into everything below.
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
-	if err := logger.InitLogger(cfg); err != nil {
+	if err = logger.InitLogger(cfg); err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
 	config.LogStartupInfo(logger.Logger)
