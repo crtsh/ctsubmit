@@ -172,3 +172,12 @@ func TestIsTestLogFinding(t *testing.T) {
 		}
 	}
 }
+
+func TestRunCTLintDummyCertError(t *testing.T) {
+	// An unparseable TBSCertificate makes MakeDummyCertificate fail, producing a
+	// single fatal finding.
+	res := runCTLint([]byte{0x00}, nil, false)
+	if len(res) != 1 || res[0].Severity != "fatal" {
+		t.Fatalf("expected a single fatal finding, got %+v", res)
+	}
+}

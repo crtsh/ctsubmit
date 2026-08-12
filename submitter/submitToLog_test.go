@@ -1,14 +1,22 @@
 package submitter
 
 import (
+	"context"
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
+	"errors"
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/crtsh/ctsubmit/config"
+	"github.com/crtsh/ctsubmit/logger"
+	"github.com/crtsh/ctsubmit/monitor"
 
 	"github.com/crtsh/ctloglists"
 	ctgo "github.com/google/certificate-transparency-go"
@@ -160,5 +168,81 @@ func TestVerifySCTSignatureTamperedEntry(t *testing.T) {
 	// Verify against different entry data than what was signed.
 	if err := verifySCTSignature(sct, nil, ctgo.X509LogEntryType, []byte("tampered-der")); err == nil {
 		t.Fatal("expected signature verification to fail for tampered entry data")
+	}
+}
+
+// timeoutError is a net.Error that reports a timeout.
+type timeoutError struct{}
+
+func (timeoutError) Error() string   { return "i/o timeout" }
+func (timeoutError) Timeout() bool   { return true }
+func (timeoutError) Temporary() bool { return false }
+
+// errorReader fails on Read, to exercise the response-body read-error path.
+type errorReader struct{}
+
+func (errorReader) Read([]byte) (int, error) { return 0, errors.New("read failure") }
+
+func TestProcessHTTPResponseFailures(t *testing.T) {
+	cfg := config.MustLoad()
+	s := New(cfg, logger.Logger, monitor.New(cfg))
+	const url = "https://process-test.example/"
+
+	body := func(status int, s string) *http.Response {
+		return &http.Response{StatusCode: status, Body: io.NopCloser(strings.NewReader(s)), Header: http.Header{}}
+	}
+
+	cases := []struct {
+		name string
+		resp *http.Response
+		err  error
+	}{
+		{"transport error", nil, errors.New("boom")},
+		{"timeout error", nil, timeoutError{}},
+		{"server error", body(500, ""), nil},
+		{"client error", body(400, ""), nil},
+		{"unexpected 3xx status", body(302, ""), nil},
+		{"body read error", &http.Response{StatusCode: 200, Body: io.NopCloser(errorReader{}), Header: http.Header{}}, nil},
+		{"invalid json", body(200, "not json"), nil},
+		{"undecodable sct", body(200, "{}"), nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			events := make(chan submissionEvent, 1)
+			s.processHTTPResponse(0, url, tc.resp, tc.err, nil, ctgo.X509LogEntryType, nil, time.Millisecond, events)
+			if ev := <-events; ev.eventType != eventFailure {
+				t.Errorf("%s: got event %v, want eventFailure", tc.name, ev.eventType)
+			}
+		})
+	}
+}
+
+func TestCancelledSubmissionOutcome(t *testing.T) {
+	assertContains := func(t *testing.T, name, got, want string) {
+		t.Helper()
+		if !strings.Contains(got, want) {
+			t.Errorf("%s: got %q, want it to contain %q", name, got, want)
+		}
+	}
+
+	quorum, cancelQ := context.WithCancelCause(context.Background())
+	cancelQ(errQuorumMet)
+	assertContains(t, "quorum", cancelledSubmissionOutcome(quorum), "quorum")
+
+	deadline, cancelD := context.WithCancelCause(context.Background())
+	cancelD(context.DeadlineExceeded)
+	assertContains(t, "deadline", cancelledSubmissionOutcome(deadline), "deadline")
+
+	canceled, cancelC := context.WithCancelCause(context.Background())
+	cancelC(context.Canceled)
+	assertContains(t, "canceled", cancelledSubmissionOutcome(canceled), "cancelled")
+
+	custom, cancelX := context.WithCancelCause(context.Background())
+	cancelX(errors.New("some other cause"))
+	assertContains(t, "custom", cancelledSubmissionOutcome(custom), "some other cause")
+
+	// A context with no cause falls through to the default message.
+	if got := cancelledSubmissionOutcome(context.Background()); got != "Cancelled" {
+		t.Errorf("default: got %q, want \"Cancelled\"", got)
 	}
 }

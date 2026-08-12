@@ -144,3 +144,16 @@ func TestDispreferIfLowUptimeWithoutData(t *testing.T) {
 		}
 	}
 }
+
+func TestCompileRegexes(t *testing.T) {
+	res := compileRegexes([]string{`^https://a/`, `b\.example`})
+	if len(res) != 2 {
+		t.Fatalf("compileRegexes: got %d, want 2", len(res))
+	}
+	if !res[0].MatchString("https://a/") || !res[1].MatchString("https://b.example/") {
+		t.Error("compiled regexes did not match expected inputs")
+	}
+	if got := compileRegexes(nil); got != nil {
+		t.Errorf("compileRegexes(nil): got %v, want nil", got)
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	stdx509 "crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"math/big"
 	"testing"
 	"time"
@@ -124,5 +125,73 @@ func TestHandle(t *testing.T) {
 	// An empty chain is rejected.
 	if _, err := s.Handle(context.Background(), endpoint.ENDPOINT_ADDCHAIN, NewSubmissionRequest()); err == nil {
 		t.Error("expected an error for an empty chain")
+	}
+}
+
+// markCertDER returns the DER of a self-signed certificate carrying the BIMI
+// (Mark Certificate) extended key usage OID.
+func markCertDER(t *testing.T) []byte {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("GenerateKey: %v", err)
+	}
+	tmpl := &stdx509.Certificate{
+		SerialNumber:       big.NewInt(1),
+		Subject:            pkix.Name{CommonName: "mark.example"},
+		NotBefore:          time.Now().Add(-time.Hour),
+		NotAfter:           time.Now().Add(90 * 24 * time.Hour),
+		UnknownExtKeyUsage: []asn1.ObjectIdentifier{{1, 3, 6, 1, 5, 5, 7, 3, 31}}, // BIMI id-kp-BrandIndicatorforMessageIdentification.
+	}
+	der, err := stdx509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatalf("CreateCertificate: %v", err)
+	}
+	return der
+}
+
+func TestDetermineSubmissionRequirementsMarkCertificate(t *testing.T) {
+	cert, err := x509.ParseCertificate(markCertDER(t))
+	if err != nil {
+		t.Fatalf("ParseCertificate: %v", err)
+	}
+
+	sr := NewSubmissionRequest()
+	ll := sr.determineSubmissionRequirements(cert)
+	if ll != loglists.UsableBIMILogs {
+		t.Error("a Mark Certificate should select the BIMI log list")
+	}
+	if sr.RequireAtLeastOneRFC6962SCT {
+		t.Error("a Mark Certificate should not enable the RFC6962 requirement")
+	}
+}
+
+func TestDetermineSubmissionRequirementsShortLived(t *testing.T) {
+	// A <=180-day validity under policy compliance requires exactly 2 SCTs.
+	der := selfSignedDER(t, time.Now().Add(-time.Hour), time.Now().Add(90*24*time.Hour))
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatalf("ParseCertificate: %v", err)
+	}
+	sr := NewSubmissionRequest()
+	sr.determineSubmissionRequirements(cert)
+	if sr.SCTs != 2 {
+		t.Errorf("short-lived policy-compliant cert: got %d SCTs, want 2", sr.SCTs)
+	}
+}
+
+func TestDetermineSubmissionRequirementsSCTsClampToOperators(t *testing.T) {
+	der := selfSignedDER(t, time.Now().Add(-time.Hour), time.Now().Add(90*24*time.Hour))
+	cert, err := x509.ParseCertificate(der)
+	if err != nil {
+		t.Fatalf("ParseCertificate: %v", err)
+	}
+	// Non-policy-compliant so the SCT count is driven only by the operator clamp.
+	sr := NewSubmissionRequest()
+	sr.PolicyCompliant = false
+	sr.Operators = 3
+	sr.determineSubmissionRequirements(cert)
+	if sr.SCTs < 3 {
+		t.Errorf("SCTs should be clamped up to the operator count: got %d, want >= 3", sr.SCTs)
 	}
 }

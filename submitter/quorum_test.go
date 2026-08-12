@@ -460,3 +460,80 @@ func TestAddSuccess_TracksLogTypes(t *testing.T) {
 		t.Fatalf("expected 2 operators, got %d", len(qs.operators))
 	}
 }
+
+func TestTrimToQuorumDropsExcessWhenSwappingRFC6962(t *testing.T) {
+	sr := NewSubmissionRequest()
+	sr.SCTs = 2
+	sr.Operators = 2
+	sr.RequireAtLeastOneRFC6962SCT = true
+
+	// Operator diversity first selects A and B (both Static); swapping in the
+	// required RFC6962 SCT (C) then forces a non-Static entry to be dropped.
+	strategy := makeStrategy(
+		makeSM("A", LOGTYPE_STATIC),
+		makeSM("B", LOGTYPE_STATIC),
+		makeSM("C", LOGTYPE_RFC6962),
+	)
+	qs := newQuorumState()
+	for i := range strategy {
+		qs.addSuccess(strategy, i, dummyResponse(), dummySCT())
+	}
+
+	qs.trimToQuorum(sr, strategy)
+
+	if len(qs.responses) != 2 {
+		t.Fatalf("expected 2 SCTs after trim, got %d", len(qs.responses))
+	}
+	hasRFC := false
+	for _, si := range qs.strategyIndices {
+		if strategy[si].LogType == LOGTYPE_RFC6962 {
+			hasRFC = true
+		}
+	}
+	if !hasRFC {
+		t.Error("trim should retain the required RFC6962 SCT")
+	}
+}
+
+func TestHelpsQuorumStaticPreference(t *testing.T) {
+	sr := NewSubmissionRequest()
+	sr.SCTs = 1
+	sr.Operators = 1
+	sr.PreferAtLeastOneStaticSCT = true
+
+	strategy := makeStrategy(makeSM("A", LOGTYPE_RFC6962))
+	qs := newQuorumState()
+	qs.addSuccess(strategy, 0, dummyResponse(), dummySCT())
+
+	// SCT count and operators are met, but the Static preference is unmet, so a
+	// Static log helps while another RFC6962 log does not.
+	if !qs.helpsQuorum(sr, makeSM("B", LOGTYPE_STATIC)) {
+		t.Error("a Static log should help satisfy the unmet Static preference")
+	}
+	if qs.helpsQuorum(sr, makeSM("B", LOGTYPE_RFC6962)) {
+		t.Error("another RFC6962 log should not help once all hard requirements are met")
+	}
+}
+
+func TestWouldHelpStaticPreference(t *testing.T) {
+	sr := NewSubmissionRequest()
+	sr.SCTs = 1
+	sr.Operators = 1
+	sr.PreferAtLeastOneStaticSCT = true
+
+	strategy := makeStrategy(
+		makeSM("A", LOGTYPE_RFC6962),
+		makeSM("B", LOGTYPE_STATIC),
+	)
+	qs := newQuorumState()
+	qs.addSuccess(strategy, 0, dummyResponse(), dummySCT())
+
+	// No in-flight submissions: a Static log helps the unmet preference, another
+	// RFC6962 log does not.
+	if !qs.wouldHelp(sr, strategy[1], strategy, map[int]bool{}) {
+		t.Error("a Static log should help the unmet Static preference")
+	}
+	if qs.wouldHelp(sr, makeSM("C", LOGTYPE_RFC6962), strategy, map[int]bool{}) {
+		t.Error("another RFC6962 log should not help once hard requirements and no static-eligible slot remain")
+	}
+}
