@@ -13,7 +13,7 @@ jobs:
     env:
       # Minimum overall statement coverage (%) required to pass. Ratchet this
       # upward over time to prevent coverage regressions as the codebase grows.
-      COVERAGE_THRESHOLD: "39"
+      COVERAGE_THRESHOLD: "60"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
