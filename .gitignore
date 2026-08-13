@@ -31,8 +31,6 @@ go.work.sum
 # .idea/
 # .vscode/
 node_modules
-package-lock.json
-package.json
 
 # Generated quicktemplate sources: never committed, so they can't become stale
 # in the repository. Regenerate with `make generate` (a full `make` build cleans
