@@ -9,7 +9,7 @@ info:
   license:
     name: GNU General Public License v3.0 or later
     url: https://spdx.org/licenses/GPL-3.0-or-later.html
-  version: 1.0.1
+  version: 1.0.2
 
 security: []
 
@@ -284,7 +284,7 @@ components:
           default: false
         testLogs:
           type: boolean
-          description: If true, submit to Test CT logs instead of Production CT logs
+          description: If true, submit to Test CT logs instead of Production CT logs. Also suppresses the *ctlint* findings that only arise because the SCTs come from test logs absent from ctlint's bundled production log lists
           default: false
         operators:
           type: integer
@@ -325,7 +325,7 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CTLintFinding'
-          description: (add-pre-chain only, requires response.produceFinalTBSCert config, disabled by default) An array of linter findings from ctlint
+          description: (add-pre-chain only, requires response.produceFinalTBSCert config, disabled by default) An array of linter findings from ctlint. When testLogs is true, findings that only occur because the SCTs come from test logs are suppressed
         strategy:
           type: array
           items:

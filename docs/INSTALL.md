@@ -81,6 +81,8 @@ Configuration files are searched for in the following locations (from least to m
 2. `./config/config.yaml`
 3. `./config.yaml`
 
+A missing config file is fine (configuration can be supplied entirely via environment variables), but a config file that exists yet cannot be parsed causes ctsubmit to fail at startup rather than being silently ignored.
+
 For a full list of configuration options and their default values, please consult the [Configuration Reference](#configuration-reference).
 
 ### Environment Variables

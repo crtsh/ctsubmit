@@ -116,7 +116,7 @@ A successful response contains the collected SCTs and, for precertificate submis
 | `logResponse` | When `response.includeLogResponses` config is enabled (default: `true`) | Array of SCT responses from CT logs. |
 | `sctListB64` | `add-pre-chain` only, when `response.includeSCTList` config is enabled (default: `false`) | Base64-encoded TLS-encoded SCT list. Use this to construct the SCT list X.509 extension and embed it in your own TBSCertificate. |
 | `finalTBSCertB64` | `add-pre-chain` only, when `response.produceFinalTBSCert` config is enabled (default: `false`) | Base64-encoded TBSCertificate with the collected SCTs embedded as an SCT list extension and the CT poison extension removed. **WARNING:** Signing this value blindly means trusting ctsubmit with your CA's signing key output. See [Security Considerations](#security-considerations). |
-| `ctlint` | `add-pre-chain` only, when `response.produceFinalTBSCert` config is enabled (default: `false`) | Array of [ctlint](https://github.com/crtsh/ctlint) findings for CT policy compliance checking. |
+| `ctlint` | `add-pre-chain` only, when `response.produceFinalTBSCert` config is enabled (default: `false`) | Array of [ctlint](https://github.com/crtsh/ctlint) findings for CT policy compliance checking. When `testLogs` is true, findings that only arise because the SCTs come from test logs are suppressed (see [Interaction with `testLogs`](#interaction-with-testlogs)). |
 | `strategy` | When `verbose=true` | Array of strategy members showing which logs were considered, their priority buckets, and submission outcomes. |
 
 ### Error Response (HTTP 400)
@@ -179,6 +179,7 @@ When both `policyCompliant` and `testLogs` are true, the quorum requirements abo
 
 - **Expired certificates are accepted** — the expiry check is skipped, allowing test submissions of expired certificates.
 - **Log state is not enforced** — logs do not need to be in the `Usable` state; `ReadOnly`, `Retired`, and other states are permitted.
+- **Production-log `ctlint` findings are suppressed** — whenever `testLogs` is true (independent of `policyCompliant`), the `ctlint` response field drops findings that only occur because the SCTs come from test logs absent from ctlint's bundled production log lists (e.g. "no SCTs from currently approved logs", "SCT is from an unknown log", temporal-shard mismatches). Structural, per-SCT, extension, and `notBefore` checks are still reported.
 
 This allows testing policy-compliant submission flows against test logs that may not carry production state metadata.
 
