@@ -1,9 +1,7 @@
 name: Scheduled check and build on dependency updates
 
 permissions:
-  contents: write
-  pull-requests: write
-  actions: write
+  contents: read
 
 on:
   schedule:
@@ -15,6 +13,10 @@ jobs:
   check_release:
     runs-on: ubuntu-latest
     name: Hourly check for dependency updates
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
 
     steps:
     - name: Harden the runner (Audit all outbound calls)

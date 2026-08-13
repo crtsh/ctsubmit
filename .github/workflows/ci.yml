@@ -32,7 +32,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Generate templates
-        run: go run github.com/valyala/quicktemplate/qtc@latest -dir=request/templates
+        run: go run github.com/valyala/quicktemplate/qtc@v1.8.0 -dir=request/templates
 
       - name: Run tests with coverage
         run: go test -covermode=atomic -coverprofile=coverage.out ./...
@@ -83,7 +83,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Generate templates
-        run: go run github.com/valyala/quicktemplate/qtc@latest -dir=request/templates
+        run: go run github.com/valyala/quicktemplate/qtc@v1.8.0 -dir=request/templates
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
@@ -107,10 +107,10 @@ jobs:
           go-version-file: go.mod
 
       - name: Generate templates
-        run: go run github.com/valyala/quicktemplate/qtc@latest -dir=request/templates
+        run: go run github.com/valyala/quicktemplate/qtc@v1.8.0 -dir=request/templates
 
       - name: Scan for known vulnerabilities
-        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.6.0 ./...
 
   test-race:
     runs-on: ubuntu-latest
@@ -129,7 +129,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Generate templates
-        run: go run github.com/valyala/quicktemplate/qtc@latest -dir=request/templates
+        run: go run github.com/valyala/quicktemplate/qtc@v1.8.0 -dir=request/templates
 
       - name: Run tests with race detector
         run: go test -race ./...
