@@ -59,6 +59,7 @@ jobs:
         add-paths: |
           dev_go.*
           pki/data/optimal_parents.csv
+          Dockerfile
         token: ${{ secrets.GITHUB_TOKEN }}
         base: main
         branch: auto-dev-update
