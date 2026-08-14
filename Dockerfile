@@ -1,4 +1,4 @@
-FROM docker.io/library/golang:1.26.5-alpine@sha256:0178a641fbb4858c5f1b48e34bdaabe0350a330a1b1149aabd498d0699ff5fb2 AS builder
+FROM docker.io/library/golang:1.27rc3-alpine@sha256:1960ad72510580cb8f7bc18e0e8c6e703ece95ee0a745d535cfa7d4337d48c1b AS builder
 ARG gomodfile=go.mod
 ENV CGO_ENABLED=0 \
     GOARCH=amd64
