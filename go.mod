@@ -1,6 +1,6 @@
 module github.com/crtsh/ctsubmit
 
-go 1.26.7
+go 1.27.0
 
 require (
 	filippo.io/sunlight v0.9.0
