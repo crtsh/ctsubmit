@@ -27,6 +27,8 @@ The discovery loop:
 
 Parent certificates are sourced from the [CCADB](https://www.ccadb.org/) (Common CA Database), which contains the intermediate and root CA certificates trusted by Mozilla, Apple, Google, and Microsoft.
 
+> **Note:** The Test TLS column of `optimal_parents.csv` is precomputed from the built-in test logs' accepted roots, so chain discovery for a custom test log list (`strategy.testLogListFilename`) may append intermediates that those logs don't accept.
+
 ## 2. Submission Requirements (`request.go`)
 
 The caller can set explicit values for `SCTs` (total SCT count) and `Operators` (distinct operator count). When `PolicyCompliant` is true and the certificate is not a BIMI Mark Certificate, CT policy rules are enforced:
@@ -47,10 +49,12 @@ Starting from the appropriate base log list (Usable TLS, Usable BIMI, Test, or c
 - **Expiry check** — if policy compliance is required (without test logs), expired certificates are rejected.
 - **Temporal compatibility** — the log's temporal interval must cover the certificate's validity period.
 - **Policy state** — when policy compliance is required (without test logs), only logs in the `Usable` state (and not `ReadOnly`, `Retired`, or `Rejected`) are used.
-- **Chain validation** — the certificate chain must validate to one of the log's accepted root certificates. Validation results are cached per chain/log pair.
+- **Chain validation** — the certificate chain must validate to one of the log's accepted root certificates. Validation results are cached per chain/log pair. Logs for which no accepted roots are known (which is normal for a custom test log list) skip this filter, leaving acceptance up to the log itself.
 - **Sufficiency check** — if there are not enough compatible logs/operators to meet the requirements, submission is aborted early.
 
 > **Note:** When `testLogs` is true, the expiry check and policy state filters are skipped even if `policyCompliant` is true. This allows testing quorum logic against test logs without requiring production log state or unexpired certificates.
+
+> **Note:** The Test base log list is derived from the crt.sh active log list unless the `strategy.testLogListFilename` config option names a log list JSON file, in which case that file's logs are used instead. Their temporal intervals, MMDs and states are honoured as for any other log list.
 
 ## 4. Strategy (`strategy.go`)
 
