@@ -11,9 +11,12 @@ import (
 	"github.com/crtsh/ctsubmit/config"
 	"github.com/crtsh/ctsubmit/health"
 	"github.com/crtsh/ctsubmit/logger"
+	"github.com/crtsh/ctsubmit/loglists"
 	"github.com/crtsh/ctsubmit/monitor"
 	"github.com/crtsh/ctsubmit/server"
 	"github.com/crtsh/ctsubmit/submitter"
+
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -27,6 +30,11 @@ func main() {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
 	config.LogStartupInfo(lgr)
+
+	// Apply any custom test log list. This must happen before monitor.New, which seeds its caches from the test log list.
+	if err := loglists.LoadCustomTestLogList(cfg); err != nil {
+		lgr.Fatal("Failed to load custom test log list", zap.Error(err))
+	}
 
 	// Configure graceful shutdown capabilities.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)

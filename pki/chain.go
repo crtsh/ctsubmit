@@ -75,6 +75,10 @@ func ValidateChain(logID [sha256.Size]byte, submittedChain [][]byte, logTemporal
 			if len(submittedChain) > 1 {
 				cacheValidateChainResult(logID, chainSHA256, chainIsValid)
 			}
+		} else {
+			// We have no accepted roots for this log (e.g. it comes from a custom test log list),
+			// so let the submission proceed and let the log itself decide.
+			chainIsValid = true
 		}
 	}
 	return chainIsValid

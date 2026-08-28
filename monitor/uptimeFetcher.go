@@ -12,8 +12,6 @@ import (
 
 	"github.com/crtsh/ctsubmit/logger"
 
-	"github.com/crtsh/ctloglists"
-
 	"go.uber.org/zap"
 )
 
@@ -41,14 +39,16 @@ func (m *Monitor) initUptimeMaps() {
 }
 
 func initializeUptimeMap(uptimeMap map[string]*EndpointUptimes) {
-	for _, operator := range ctloglists.CrtshV3Active.Operators {
-		for _, log := range operator.Logs {
-			submissionURL, _ := url.JoinPath(log.URL, "/")
-			uptimeMap[submissionURL] = nil
-		}
-		for _, tiledLog := range operator.TiledLogs {
-			submissionURL, _ := url.JoinPath(tiledLog.SubmissionURL, "/")
-			uptimeMap[submissionURL] = nil
+	for _, logList := range monitoredLogLists() {
+		for _, operator := range logList.Operators {
+			for _, log := range operator.Logs {
+				submissionURL, _ := url.JoinPath(log.URL, "/")
+				uptimeMap[submissionURL] = nil
+			}
+			for _, tiledLog := range operator.TiledLogs {
+				submissionURL, _ := url.JoinPath(tiledLog.SubmissionURL, "/")
+				uptimeMap[submissionURL] = nil
+			}
 		}
 	}
 }

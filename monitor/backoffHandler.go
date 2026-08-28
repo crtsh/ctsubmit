@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/crtsh/ctloglists"
-
 	"go.uber.org/zap"
 )
 
@@ -19,24 +17,26 @@ type backoffEntry struct {
 }
 
 func (m *Monitor) initBackoffMaps() {
-	for _, operator := range ctloglists.CrtshV3Active.Operators {
-		for _, log := range operator.Logs {
-			submissionURL, _ := url.JoinPath(log.URL, "/")
-			m.backoffBadResponse[submissionURL] = &backoffEntry{}
-			m.backoffTimeout[submissionURL] = &backoffEntry{}
-			m.backoff5xx[submissionURL] = &backoffEntry{}
-			m.backoff4xx[submissionURL] = &backoffEntry{}
-			m.backoffSlowResponse[submissionURL] = &backoffEntry{}
-		}
-		for _, tiledLog := range operator.TiledLogs {
-			submissionURL, _ := url.JoinPath(tiledLog.SubmissionURL, "/")
-			m.backoffBadResponse[submissionURL] = &backoffEntry{}
-			m.backoffTimeout[submissionURL] = &backoffEntry{}
-			m.backoff5xx[submissionURL] = &backoffEntry{}
-			m.backoff4xx[submissionURL] = &backoffEntry{}
-			m.backoffSlowResponse[submissionURL] = &backoffEntry{}
+	for _, logList := range monitoredLogLists() {
+		for _, operator := range logList.Operators {
+			for _, log := range operator.Logs {
+				submissionURL, _ := url.JoinPath(log.URL, "/")
+				m.initBackoffEntries(submissionURL)
+			}
+			for _, tiledLog := range operator.TiledLogs {
+				submissionURL, _ := url.JoinPath(tiledLog.SubmissionURL, "/")
+				m.initBackoffEntries(submissionURL)
+			}
 		}
 	}
+}
+
+func (m *Monitor) initBackoffEntries(submissionURL string) {
+	m.backoffBadResponse[submissionURL] = &backoffEntry{}
+	m.backoffTimeout[submissionURL] = &backoffEntry{}
+	m.backoff5xx[submissionURL] = &backoffEntry{}
+	m.backoff4xx[submissionURL] = &backoffEntry{}
+	m.backoffSlowResponse[submissionURL] = &backoffEntry{}
 }
 
 func (m *Monitor) RecordBadResponse(submissionURL string, err error) bool {

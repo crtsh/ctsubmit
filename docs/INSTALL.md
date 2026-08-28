@@ -129,6 +129,7 @@ strategy:
     tryNextResponseThreshold: 500ms  # Start submitting to the next log after this long.
     slowResponseThreshold: 2s        # Mark a response as "slow" after this long.
     httpTimeout: 15s                 # HTTP client timeout for log submissions.
+  testLogListFilename: ""       # Path to a log list JSON file that replaces the built-in test logs.
 
 sthMonitor:
   refreshInterval: 30s          # How often to fetch each log's latest STH/checkpoint.
@@ -188,6 +189,7 @@ logging:
 | `strategy.submission.tryNextResponseThreshold` | `500ms` | Time to wait before speculatively starting a submission to the next log. |
 | `strategy.submission.slowResponseThreshold` | `2s` | Time after which a response is recorded as "slow" for future dispreferal. |
 | `strategy.submission.httpTimeout` | `15s` | HTTP client timeout for submissions to CT logs. |
+| `strategy.testLogListFilename` | _(empty)_ | Path to a [v3 log list JSON](https://www.gstatic.com/ct/log_list/v3/log_list_schema.json) file. When set, its logs replace the test logs derived from `ctloglists`, and are used for `test_tls_logs.json` and for submissions that request test logs. Chain validation is skipped for logs with no known accepted roots, so the log itself decides whether to accept a submission. |
 
 #### STH Monitor
 

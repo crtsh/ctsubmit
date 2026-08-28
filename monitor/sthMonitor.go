@@ -15,7 +15,6 @@ import (
 
 	"filippo.io/sunlight"
 
-	"github.com/crtsh/ctloglists"
 	json "github.com/goccy/go-json"
 	ctgo "github.com/google/certificate-transparency-go"
 
@@ -36,43 +35,52 @@ type STHData struct {
 }
 
 func (m *Monitor) initSTHData() {
-	for _, operator := range ctloglists.CrtshV3Active.Operators {
-		for _, log := range operator.Logs {
-			pubKey, err := x509.ParsePKIXPublicKey(log.Key)
-			if err != nil {
-				m.lgr.Error("could not parse public key", zap.String("url", log.URL), zap.ByteString("key", log.Key), zap.Error(err))
-				continue
-			}
-			sigVerifier, err := ctgo.NewSignatureVerifier(pubKey)
-			if err != nil {
-				m.lgr.Error("could not create signature verifier", zap.String("url", log.URL), zap.ByteString("key", log.Key), zap.Error(err))
-				continue
-			}
+	for _, logList := range monitoredLogLists() {
+		for _, operator := range logList.Operators {
+			for _, log := range operator.Logs {
+				pubKey, err := x509.ParsePKIXPublicKey(log.Key)
+				if err != nil {
+					m.lgr.Error("could not parse public key", zap.String("url", log.URL), zap.ByteString("key", log.Key), zap.Error(err))
+					continue
+				}
+				sigVerifier, err := ctgo.NewSignatureVerifier(pubKey)
+				if err != nil {
+					m.lgr.Error("could not create signature verifier", zap.String("url", log.URL), zap.ByteString("key", log.Key), zap.Error(err))
+					continue
+				}
 
-			logURL, _ := url.JoinPath(log.URL, "/")
-			m.sthData[logURL] = &STHData{IsRFC6962Log: true, SigVerifier: sigVerifier, SubmissionURL: logURL}
-		}
-
-		for _, tiledLog := range operator.TiledLogs {
-			submissionURL, _ := url.JoinPath(tiledLog.SubmissionURL, "/")
-			monitoringURL, _ := url.JoinPath(tiledLog.MonitoringURL, "/")
-
-			pubKey, err := x509.ParsePKIXPublicKey(tiledLog.Key)
-			if err != nil {
-				m.lgr.Error("Failed to parse static log public key", zap.String("url", monitoringURL), zap.ByteString("key", tiledLog.Key), zap.Error(err))
-				continue
+				logURL, _ := url.JoinPath(log.URL, "/")
+				m.sthData[logURL] = &STHData{IsRFC6962Log: true, SigVerifier: sigVerifier, SubmissionURL: logURL}
 			}
 
-			keyName := strings.TrimRight(strings.TrimPrefix(tiledLog.SubmissionURL, "https://"), "/")
-			verifier, err := sunlight.NewRFC6962Verifier(keyName, pubKey)
-			if err != nil {
-				m.lgr.Error("Failed to create static log checkpoint verifier", zap.String("url", monitoringURL), zap.ByteString("key", tiledLog.Key), zap.Error(err))
-				continue
-			}
+			for _, tiledLog := range operator.TiledLogs {
+				submissionURL, _ := url.JoinPath(tiledLog.SubmissionURL, "/")
+				monitoringURL, _ := url.JoinPath(tiledLog.MonitoringURL, "/")
 
-			m.sthData[monitoringURL] = &STHData{KeyName: keyName, NoteVerifiers: note.VerifierList(verifier), SubmissionURL: submissionURL}
+				pubKey, err := x509.ParsePKIXPublicKey(tiledLog.Key)
+				if err != nil {
+					m.lgr.Error("Failed to parse static log public key", zap.String("url", monitoringURL), zap.ByteString("key", tiledLog.Key), zap.Error(err))
+					continue
+				}
+
+				keyName := checkpointKeyName(tiledLog.SubmissionURL)
+				verifier, err := sunlight.NewRFC6962Verifier(keyName, pubKey)
+				if err != nil {
+					m.lgr.Error("Failed to create static log checkpoint verifier", zap.String("url", monitoringURL), zap.ByteString("key", tiledLog.Key), zap.Error(err))
+					continue
+				}
+
+				m.sthData[monitoringURL] = &STHData{KeyName: keyName, NoteVerifiers: note.VerifierList(verifier), SubmissionURL: submissionURL}
+			}
 		}
 	}
+}
+
+// checkpointKeyName derives a static log's expected checkpoint origin from its submission URL.
+func checkpointKeyName(submissionURL string) string {
+	keyName := strings.TrimPrefix(submissionURL, "https://")
+	keyName = strings.TrimPrefix(keyName, "http://")
+	return strings.TrimRight(keyName, "/")
 }
 
 func (m *Monitor) STHMonitor(ctx context.Context) {

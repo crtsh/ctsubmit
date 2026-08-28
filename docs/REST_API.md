@@ -195,7 +195,7 @@ Browse (i.e., send a GET request) to the `add-chain` or `add-pre-chain` endpoint
 |---|---|
 | `/usable_tls_logs.json` | Usable TLS CT logs — the intersection of logs marked as usable by Chrome, Apple, and Mozilla. Used for policy-compliant TLS submissions. |
 | `/active_tls_logs.json` | Active TLS CT logs — all non-test logs from the crt.sh active log list. Used for non-policy-compliant submissions. |
-| `/test_tls_logs.json` | Test CT logs — test-flagged logs from the crt.sh active log list. Used when `testLogs` is true. |
+| `/test_tls_logs.json` | Test CT logs — test-flagged logs from the crt.sh active log list, or the contents of the log list file named by the `strategy.testLogListFilename` config option. Used when `testLogs` is true. |
 | `/usable_bimi_logs.json` | Usable BIMI CT logs — BIMI-approved logs from the crt.sh approved log list. Used for BIMI Mark Certificate submissions. |
 
 ### Dashboard
