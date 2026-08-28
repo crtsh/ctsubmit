@@ -57,6 +57,7 @@ type Settings struct {
 			SlowResponseThreshold    time.Duration `mapstructure:"slowResponseThreshold"`
 			HTTPTimeout              time.Duration `mapstructure:"httpTimeout"`
 		}
+		TestLogListFilename string `mapstructure:"testLogListFilename"`
 	}
 	STHMonitor struct {
 		RefreshInterval time.Duration `mapstructure:"refreshInterval"`
@@ -252,6 +253,7 @@ func initViper(dst *Settings) error {
 	viper.SetDefault("strategy.submission.tryNextResponseThreshold", 500*time.Millisecond)
 	viper.SetDefault("strategy.submission.slowResponseThreshold", 2*time.Second)
 	viper.SetDefault("strategy.submission.httpTimeout", 15*time.Second)
+	viper.SetDefault("strategy.testLogListFilename", "")
 	viper.SetDefault("sthMonitor.refreshInterval", 30*time.Second)
 	viper.SetDefault("sthMonitor.httpTimeout", 15*time.Second)
 	viper.SetDefault("uptimeFetcher.refreshInterval", 30*time.Minute)

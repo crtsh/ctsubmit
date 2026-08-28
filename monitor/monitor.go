@@ -5,6 +5,10 @@ import (
 	"sync"
 
 	"github.com/crtsh/ctsubmit/config"
+	"github.com/crtsh/ctsubmit/loglists"
+
+	"github.com/crtsh/ctloglists"
+	"github.com/google/certificate-transparency-go/loglist3"
 
 	"go.uber.org/zap"
 )
@@ -75,4 +79,14 @@ func New(cfg *config.Settings, lgrs ...*zap.Logger) *Monitor {
 	m.initSTHData()
 	m.initUptimeMaps()
 	return m
+}
+
+// monitoredLogLists returns the log lists whose logs need monitoring state.
+func monitoredLogLists() []*loglist3.LogList {
+	logLists := []*loglist3.LogList{ctloglists.CrtshV3Active}
+	// A custom test log list (strategy.testLogListFilename) may contain logs that ctloglists knows nothing about.
+	if customTestLogs := loglists.CustomTestLogList(); customTestLogs != nil {
+		logLists = append(logLists, customTestLogs)
+	}
+	return logLists
 }
