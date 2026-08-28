@@ -112,7 +112,7 @@ func POST(fhctx *fasthttp.RequestCtx, path string, cfg *config.Settings, sub *su
 		if err == nil {
 			status = sendJSONResponse(fhctx, cfg, submissionResponse)
 		} else {
-			status = sendJSONProblem(fhctx, status, err)
+			status = sendJSONProblem(fhctx, status, submissionResponse, err)
 		}
 	}
 	return status
@@ -141,11 +141,18 @@ func sendHTMLResponse(fhctx *fasthttp.RequestCtx, submissionResponse *submitter.
 
 	if err != nil {
 		templates.WriteHTMLError(fhctx, err.Error())
+		if hasStrategy(submissionResponse) {
+			templates.WriteHTMLResponse(fhctx, submissionResponse)
+		}
 		return fasthttp.StatusBadRequest
 	}
 
 	templates.WriteHTMLResponse(fhctx, submissionResponse)
 	return fasthttp.StatusOK
+}
+
+func hasStrategy(submissionResponse *submitter.SubmissionResponse) bool {
+	return submissionResponse != nil && len(submissionResponse.Strategy) > 0
 }
 
 func sendJSONResponse(fhctx *fasthttp.RequestCtx, cfg *config.Settings, submissionResponse *submitter.SubmissionResponse) int {
@@ -164,10 +171,14 @@ func sendJSONResponse(fhctx *fasthttp.RequestCtx, cfg *config.Settings, submissi
 	return fasthttp.StatusOK
 }
 
-func sendJSONProblem(fhctx *fasthttp.RequestCtx, status int, err error) int {
+func sendJSONProblem(fhctx *fasthttp.RequestCtx, status int, submissionResponse *submitter.SubmissionResponse, err error) int {
 	// Encode and send the error as a JSON Problem response.
 	fhctx.SetContentType(problem.ContentTypeJSON)
-	fhctx.SetBody(problem.Of(status).Append(problem.Detail(err.Error())).JSON())
+	p := problem.Of(status).Append(problem.Detail(err.Error()))
+	if hasStrategy(submissionResponse) {
+		p = p.Append(problem.Custom("strategy", submissionResponse.Strategy))
+	}
+	fhctx.SetBody(p.JSON())
 
 	return status
 }

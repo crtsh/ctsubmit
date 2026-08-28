@@ -16,6 +16,9 @@ import (
 	"github.com/google/certificate-transparency-go/x509"
 )
 
+// Handle processes a submission request. When the request asked for the
+// strategy, a non-nil response carrying it is returned alongside any error
+// raised from the strategy onwards.
 func (s *Submitter) Handle(ctx context.Context, apiEndpoint endpoint.Endpoint, submissionRequest *SubmissionRequest) (*SubmissionResponse, error) {
 	// Check "chain" parameter is present and contains at least one certificate.
 	if len(submissionRequest.Chain) == 0 {
@@ -78,12 +81,18 @@ func (s *Submitter) Handle(ctx context.Context, apiEndpoint endpoint.Endpoint, s
 	// Strategize which logs to attempt submission to, in which order.
 	strategy := s.devizeSubmissionStrategy(compatibleLogList, entryType)
 
+	// Build the response up-front, so that a requested strategy is still returned if submission subsequently fails.
+	submissionResponse := &SubmissionResponse{}
+	if submissionRequest.Verbose {
+		submissionResponse.Strategy = strategy
+	}
+
 	// Compute or lookup the issuer certificate's SPKI SHA-256 hash.
 	var sha256IssuerSPKI *[sha256.Size]byte
 	if len(submissionRequest.Chain) > 1 {
 		issuer, err := x509.ParseCertificate(submissionRequest.Chain[1])
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse issuer certificate: %v", err)
+			return submissionResponse, fmt.Errorf("failed to parse issuer certificate: %v", err)
 		}
 		hash := sha256.Sum256(issuer.RawSubjectPublicKeyInfo)
 		sha256IssuerSPKI = &hash
@@ -94,18 +103,17 @@ func (s *Submitter) Handle(ctx context.Context, apiEndpoint endpoint.Endpoint, s
 	}
 
 	// Submit to the logs.
-	submissionResponse := &SubmissionResponse{}
 	var scts []*ctgo.SignedCertificateTimestamp
 	submissionResponse.LogResponse, scts, err = s.submit(ctx, submissionRequest, strategy, sha256IssuerSPKI, entryType, entryData)
 	if err != nil {
-		return nil, fmt.Errorf("submission failed: %v", err)
+		return submissionResponse, fmt.Errorf("submission failed: %v", err)
 	}
 
 	// If requested, generate mimic SCTs.
 	if submissionRequest.Mimics && sha256IssuerSPKI != nil {
 		mimicSCTs, err := pki.GenerateMimicSCTs(entryData, *sha256IssuerSPKI)
 		if err != nil {
-			return nil, fmt.Errorf("failed to generate mimic SCTs: %v", err)
+			return submissionResponse, fmt.Errorf("failed to generate mimic SCTs: %v", err)
 		}
 
 		// Append the mimic SCTs to the SCT list to be embedded in the final TBSCertificate.
@@ -115,7 +123,7 @@ func (s *Submitter) Handle(ctx context.Context, apiEndpoint endpoint.Endpoint, s
 		for _, mimicSCT := range mimicSCTs {
 			sig, err := tls.Marshal(mimicSCT.Signature)
 			if err != nil {
-				return nil, fmt.Errorf("failed to marshal mimic SCT signature: %v", err)
+				return submissionResponse, fmt.Errorf("failed to marshal mimic SCT signature: %v", err)
 			}
 			submissionResponse.LogResponse = append(submissionResponse.LogResponse, ctgo.AddChainResponse{
 				SCTVersion: mimicSCT.SCTVersion,
@@ -130,7 +138,7 @@ func (s *Submitter) Handle(ctx context.Context, apiEndpoint endpoint.Endpoint, s
 	// Encode the final SCT list.
 	sctListBytes, err := pki.MarshalSCTList(scts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal SCT list: %w", err)
+		return submissionResponse, fmt.Errorf("failed to marshal SCT list: %w", err)
 	}
 
 	if entryType == ctgo.PrecertLogEntryType {
@@ -146,7 +154,7 @@ func (s *Submitter) Handle(ctx context.Context, apiEndpoint endpoint.Endpoint, s
 		if s.cfg.Response.ProduceFinalTBSCert {
 			tbsCertificate, err := pki.ProduceFinalTBSCertificate(detoxedTBSCert, sctListBytes)
 			if err != nil {
-				return nil, fmt.Errorf("failed to generate final TBSCertificate: %v", err)
+				return submissionResponse, fmt.Errorf("failed to generate final TBSCertificate: %v", err)
 			}
 
 			// Base64-encode the final TBSCertificate for inclusion in the response.
@@ -161,11 +169,6 @@ func (s *Submitter) Handle(ctx context.Context, apiEndpoint endpoint.Endpoint, s
 	// Omit LogResponse from the response if configured.
 	if !s.cfg.Response.IncludeLogResponses {
 		submissionResponse.LogResponse = nil
-	}
-
-	// If requested, include the strategy information in the response.
-	if submissionRequest.Verbose {
-		submissionResponse.Strategy = strategy
 	}
 
 	return submissionResponse, nil

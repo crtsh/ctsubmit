@@ -34,11 +34,11 @@
               <TD>&nbsp;</TD>
             </TR>
             <TR>
-              <TD><INPUT type="checkbox" id="policyCompliant" checked onchange="if(this.checked){document.getElementById('testLogs').checked=false;document.getElementById('requireAtLeastOneRFC6962SCT').checked=true;document.getElementById('preferAtLeastOneStaticSCT').checked=true}"> Require policy-compliant SCT list?</TD>
+              <TD><INPUT type="checkbox" id="policyCompliant" checked onchange="if(this.checked){document.getElementById('requireAtLeastOneRFC6962SCT').checked=true;document.getElementById('preferAtLeastOneStaticSCT').checked=true}"> Require policy-compliant SCT list?</TD>
               <TD style="padding-left:20px"><INPUT type="checkbox" id="requireAtLeastOneRFC6962SCT" checked onchange="if(!this.checked)document.getElementById('policyCompliant').checked=false"> Require ≥1 RFC6962 SCT?</TD>
             </TR>
             <TR>
-              <TD><INPUT type="checkbox" id="testLogs" onchange="if(this.checked)document.getElementById('policyCompliant').checked=false"> Use <A href="https://github.com/google/certificate-transparency-community-site/blob/master/docs/google/known-logs.md#test-logs">test logs</A>?</TD>
+              <TD><INPUT type="checkbox" id="testLogs"> Use <A href="https://github.com/google/certificate-transparency-community-site/blob/master/docs/google/known-logs.md#test-logs">test logs</A>?</TD>
               <TD style="padding-left:20px"><INPUT type="checkbox" id="preferAtLeastOneStaticSCT" checked> Prefer ≥1 Static SCT?</TD>
             </TR>
             <TR>
