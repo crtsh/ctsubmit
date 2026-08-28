@@ -15,6 +15,7 @@ import (
 	"github.com/crtsh/ctsubmit/config"
 
 	"github.com/crtsh/ctloglists"
+	"github.com/google/certificate-transparency-go/loglist3"
 )
 
 // writeCustomTestLogList writes a minimal v3 log list JSON file containing one
@@ -154,6 +155,68 @@ func TestLoadCustomTestLogListErrors(t *testing.T) {
 			}
 			if TestTLSLogs != original {
 				t.Error("TestTLSLogs was replaced despite the error")
+			}
+		})
+	}
+}
+
+func TestValidateLogList(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		t.Fatalf("failed to generate key: %v", err)
+	}
+	spki, err := x509.MarshalPKIXPublicKey(&key.PublicKey)
+	if err != nil {
+		t.Fatalf("failed to marshal public key: %v", err)
+	}
+	logID := sha256.Sum256(spki)
+
+	newLogList := func(log *loglist3.Log, tiledLog *loglist3.TiledLog) *loglist3.LogList {
+		operator := &loglist3.Operator{Name: "Test Operator"}
+		if log != nil {
+			operator.Logs = []*loglist3.Log{log}
+		}
+		if tiledLog != nil {
+			operator.TiledLogs = []*loglist3.TiledLog{tiledLog}
+		}
+		return &loglist3.LogList{Operators: []*loglist3.Operator{operator}}
+	}
+
+	tests := map[string]struct {
+		logList   *loglist3.LogList
+		wantError bool
+	}{
+		"valid log": {
+			logList: newLogList(&loglist3.Log{LogID: logID[:], Key: spki, URL: "https://log.example.com/"}, nil),
+		},
+		"valid tiled log": {
+			logList: newLogList(nil, &loglist3.TiledLog{LogID: logID[:], Key: spki, SubmissionURL: "https://log.example.com/", MonitoringURL: "https://log.example.com/"}),
+		},
+		"log without url": {
+			logList:   newLogList(&loglist3.Log{LogID: logID[:], Key: spki}, nil),
+			wantError: true,
+		},
+		"tiled log without submission_url": {
+			logList:   newLogList(nil, &loglist3.TiledLog{LogID: logID[:], Key: spki, MonitoringURL: "https://log.example.com/"}),
+			wantError: true,
+		},
+		"tiled log without monitoring_url": {
+			logList:   newLogList(nil, &loglist3.TiledLog{LogID: logID[:], Key: spki, SubmissionURL: "https://log.example.com/"}),
+			wantError: true,
+		},
+		"log_id does not match key": {
+			logList:   newLogList(&loglist3.Log{LogID: make([]byte, sha256.Size), Key: spki, URL: "https://log.example.com/"}, nil),
+			wantError: true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := validateLogList(tc.logList)
+			if tc.wantError && err == nil {
+				t.Error("expected an error")
+			} else if !tc.wantError && err != nil {
+				t.Errorf("unexpected error: %v", err)
 			}
 		})
 	}

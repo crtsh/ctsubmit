@@ -1,7 +1,9 @@
 package loglists
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"os"
 
@@ -40,6 +42,10 @@ func LoadCustomTestLogList(cfg *config.Settings) error {
 		return fmt.Errorf("failed to parse custom test log list %q: %w", cfg.Strategy.TestLogListFilename, err)
 	}
 
+	if err := validateLogList(logList); err != nil {
+		return fmt.Errorf("invalid custom test log list %q: %w", cfg.Strategy.TestLogListFilename, err)
+	}
+
 	// SCT signature verification looks logs up by key ID, so the custom logs must be registered even if ctloglists doesn't know them.
 	if err := registerSignatureVerifiers(logList); err != nil {
 		return fmt.Errorf("failed to register signature verifiers for custom test log list %q: %w", cfg.Strategy.TestLogListFilename, err)
@@ -54,6 +60,41 @@ func LoadCustomTestLogList(cfg *config.Settings) error {
 
 	TestTLSLogs = logList
 	customTestLogList = logList
+	return nil
+}
+
+// validateLogList checks the fields that the rest of ctsubmit relies on but loglist3.NewFromJSON doesn't enforce.
+func validateLogList(logList *loglist3.LogList) error {
+	for _, operator := range logList.Operators {
+		for _, log := range operator.Logs {
+			if log.URL == "" {
+				return fmt.Errorf("log %q: url is required", log.Description)
+			}
+			if err := validateLogID(log.LogID, log.Key); err != nil {
+				return fmt.Errorf("log %q: %w", log.Description, err)
+			}
+		}
+		for _, tiledLog := range operator.TiledLogs {
+			if tiledLog.SubmissionURL == "" {
+				return fmt.Errorf("tiled log %q: submission_url is required", tiledLog.Description)
+			}
+			if tiledLog.MonitoringURL == "" {
+				return fmt.Errorf("tiled log %q: monitoring_url is required", tiledLog.Description)
+			}
+			if err := validateLogID(tiledLog.LogID, tiledLog.Key); err != nil {
+				return fmt.Errorf("tiled log %q: %w", tiledLog.Description, err)
+			}
+		}
+	}
+	return nil
+}
+
+// validateLogID guards against log_id and key disagreeing, since SCT verification keys off the latter while chain validation keys off the former.
+func validateLogID(logID, key []byte) error {
+	expected := sha256.Sum256(key)
+	if !bytes.Equal(logID, expected[:]) {
+		return fmt.Errorf("log_id is %q, but the SHA-256 hash of key is %q", base64.StdEncoding.EncodeToString(logID), base64.StdEncoding.EncodeToString(expected[:]))
+	}
 	return nil
 }
 

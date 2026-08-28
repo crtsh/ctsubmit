@@ -63,7 +63,7 @@ func (m *Monitor) initSTHData() {
 					continue
 				}
 
-				keyName := strings.TrimRight(strings.TrimPrefix(tiledLog.SubmissionURL, "https://"), "/")
+				keyName := checkpointKeyName(tiledLog.SubmissionURL)
 				verifier, err := sunlight.NewRFC6962Verifier(keyName, pubKey)
 				if err != nil {
 					m.lgr.Error("Failed to create static log checkpoint verifier", zap.String("url", monitoringURL), zap.ByteString("key", tiledLog.Key), zap.Error(err))
@@ -74,6 +74,13 @@ func (m *Monitor) initSTHData() {
 			}
 		}
 	}
+}
+
+// checkpointKeyName derives a static log's expected checkpoint origin from its submission URL.
+func checkpointKeyName(submissionURL string) string {
+	keyName := strings.TrimPrefix(submissionURL, "https://")
+	keyName = strings.TrimPrefix(keyName, "http://")
+	return strings.TrimRight(keyName, "/")
 }
 
 func (m *Monitor) STHMonitor(ctx context.Context) {
