@@ -6,7 +6,7 @@ require (
 	filippo.io/sunlight v0.9.0
 	github.com/crtsh/ccadb_data v1.20260828.235636
 	github.com/crtsh/ctlint v0.0.0-20260826174552-b8f2e607fb82
-	github.com/crtsh/ctloglists v1.20260826.184100
+	github.com/crtsh/ctloglists v1.20260831.175429
 	github.com/goccy/go-json v0.10.6
 	github.com/google/certificate-transparency-go v1.3.3
 	github.com/prometheus/client_golang v1.24.1
@@ -56,7 +56,7 @@ require (
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260825221802-da73d73af1c5 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260831171406-18b4a7587f8a // indirect
 	google.golang.org/grpc v1.83.2 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
