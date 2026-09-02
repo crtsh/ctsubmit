@@ -244,7 +244,7 @@ func TestProcessHTTPResponseFailures(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			events := make(chan submissionEvent, 1)
-			s.processHTTPResponse(0, url, tc.resp, tc.err, nil, ctgo.X509LogEntryType, nil, time.Millisecond, events)
+			s.processHTTPResponse(zap.NewNop(), 0, url, tc.resp, tc.err, nil, ctgo.X509LogEntryType, nil, time.Millisecond, events)
 			if ev := <-events; ev.eventType != eventFailure {
 				t.Errorf("%s: got event %v, want eventFailure", tc.name, ev.eventType)
 			}

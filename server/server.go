@@ -55,7 +55,7 @@ func webHandler(fhctx *fasthttp.RequestCtx, cfg *config.Settings, sub *submitter
 		}
 
 	} else if fhctx.IsPost() {
-		if request.POST(fhctx, endpointPath, cfg, sub, h) == -1 {
+		if request.POST(fhctx, endpointPath, cfg, sub, h, lgr.With(zap.String("request_id", logger.RequestID(fhctx)))) == -1 {
 			// Request timed out.
 			fhctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
 			fhctx.SetContentType("text/plain")

@@ -56,7 +56,7 @@ func TestPOSTUnknownEndpointReturns404(t *testing.T) {
 	ctx.Request.SetRequestURI("/not-a-real-endpoint")
 	ctx.Request.SetBody([]byte(`{"chain":[]}`))
 
-	if got := POST(ctx, "not-a-real-endpoint", config.MustLoad(), testSubmitter(), health.New()); got != fasthttp.StatusNotFound {
+	if got := POST(ctx, "not-a-real-endpoint", config.MustLoad(), testSubmitter(), health.New(), zap.NewNop()); got != fasthttp.StatusNotFound {
 		t.Fatalf("expected 404 for unknown endpoint, got %d", got)
 	}
 }
@@ -66,7 +66,7 @@ func TestPOSTEmptyBodyReturnsBadRequest(t *testing.T) {
 	ctx.Request.Header.SetMethod(fasthttp.MethodPost)
 	ctx.Request.SetRequestURI("/add-chain")
 
-	if got := POST(ctx, "add-chain", config.MustLoad(), testSubmitter(), health.New()); got != fasthttp.StatusBadRequest {
+	if got := POST(ctx, "add-chain", config.MustLoad(), testSubmitter(), health.New(), zap.NewNop()); got != fasthttp.StatusBadRequest {
 		t.Fatalf("expected 400 for empty body, got %d", got)
 	}
 }
@@ -79,7 +79,7 @@ func TestPOSTTimeoutReturnsMinusOne(t *testing.T) {
 	ctx.Request.SetRequestURI("/add-chain")
 	ctx.Request.SetBody([]byte(`{"chain":["AQID"]}`))
 
-	if got := POST(ctx, "add-chain", config.MustLoad(), testSubmitter(), health.New()); got != -1 {
+	if got := POST(ctx, "add-chain", config.MustLoad(), testSubmitter(), health.New(), zap.NewNop()); got != -1 {
 		t.Fatalf("expected -1 (timeout) for an already-expired request context, got %d", got)
 	}
 }
@@ -99,7 +99,7 @@ func newInmemHandlerClient(t *testing.T) *fasthttp.HostClient {
 			if len(path) > 0 {
 				path = path[1:]
 			}
-			if POST(ctx, path, cfg, sub, h) == -1 {
+			if POST(ctx, path, cfg, sub, h, zap.NewNop()) == -1 {
 				ctx.SetStatusCode(fasthttp.StatusServiceUnavailable)
 			}
 		},
