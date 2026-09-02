@@ -45,11 +45,12 @@ func getResponseFormat(fhctx *fasthttp.RequestCtx) config.ResponseFormat {
 	return config.DefaultResponseFormat
 }
 
-func POST(fhctx *fasthttp.RequestCtx, path string, cfg *config.Settings, sub *submitter.Submitter, h *health.Health) int {
+func POST(fhctx *fasthttp.RequestCtx, path string, cfg *config.Settings, sub *submitter.Submitter, h *health.Health, lgr *zap.Logger) int {
 	status := fasthttp.StatusBadRequest
 
 	ctx, cancel := context.WithDeadline(context.Background(), fhctx.Time().Add(time.Duration(cfg.Server.RequestTimeout)))
 	defer cancel()
+	ctx = logger.NewContext(ctx, lgr)
 
 	// Read all inputs from fhctx before any potentially long-running work.
 	apiEndpoint, ok := endpoint.CheckPOSTEndpoint(path)

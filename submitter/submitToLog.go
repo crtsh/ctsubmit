@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/crtsh/ctsubmit/logger"
 	"github.com/crtsh/ctsubmit/utils"
 
 	"github.com/crtsh/ctloglists"
@@ -25,16 +26,18 @@ import (
 // and eventSlow if the slow response threshold is exceeded (for metrics).
 // It then sends eventSuccess or eventFailure when the HTTP response completes.
 func (s *Submitter) submitToLog(ctx context.Context, strategyIdx int, submissionURL string, apiPath string, requestBody []byte, sha256IssuerSPKI *[sha256.Size]byte, entryType ctgo.LogEntryType, entryData []byte, events chan<- submissionEvent) {
+	lgr := logger.FromContext(ctx, s.lgr)
+
 	endpointURL, err := url.JoinPath(submissionURL, apiPath)
 	if err != nil {
-		s.lgr.Error("Failed to construct submission URL", zap.String("submissionURL", submissionURL), zap.Error(err))
+		lgr.Error("Failed to construct submission URL", zap.String("submissionURL", submissionURL), zap.Error(err))
 		events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: fmt.Sprintf("Failed: could not construct submission URL: %v", err)}
 		return
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpointURL, bytes.NewReader(requestBody))
 	if err != nil {
-		s.lgr.Error("Failed to create HTTP request", zap.String("url", endpointURL), zap.Error(err))
+		lgr.Error("Failed to create HTTP request", zap.String("url", endpointURL), zap.Error(err))
 		events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventFailure, outcome: fmt.Sprintf("Failed: could not create HTTP request: %v", err)}
 		return
 	}
@@ -88,7 +91,7 @@ func (s *Submitter) submitToLog(ctx context.Context, strategyIdx int, submission
 				s.mon.RecordSubmissionOutcome(submissionURL, "cancelled")
 				return
 			}
-			s.processHTTPResponse(strategyIdx, submissionURL, result.resp, result.err, sha256IssuerSPKI, entryType, entryData, timeTaken, events)
+			s.processHTTPResponse(lgr, strategyIdx, submissionURL, result.resp, result.err, sha256IssuerSPKI, entryType, entryData, timeTaken, events)
 			return
 
 		case <-ctx.Done():
@@ -123,7 +126,7 @@ func cancelledSubmissionOutcome(ctx context.Context) string {
 	}
 }
 
-func (s *Submitter) processHTTPResponse(strategyIdx int, submissionURL string, resp *http.Response, err error, sha256IssuerSPKI *[sha256.Size]byte, entryType ctgo.LogEntryType, entryData []byte, timeTaken time.Duration, events chan<- submissionEvent) {
+func (s *Submitter) processHTTPResponse(lgr *zap.Logger, strategyIdx int, submissionURL string, resp *http.Response, err error, sha256IssuerSPKI *[sha256.Size]byte, entryType ctgo.LogEntryType, entryData []byte, timeTaken time.Duration, events chan<- submissionEvent) {
 	s.mon.RecordSubmissionResponseTime(submissionURL, timeTaken)
 
 	if err != nil {
@@ -197,7 +200,7 @@ func (s *Submitter) processHTTPResponse(strategyIdx int, submissionURL string, r
 		return
 	}
 
-	s.lgr.Debug("Accepted SCT", zap.Int("strategyIdx", strategyIdx), zap.String("submissionURL", submissionURL), zap.String("logID", hex.EncodeToString(sct.LogID.KeyID[:])), zap.Uint64("timestamp", sct.Timestamp))
+	lgr.Debug("Accepted SCT", zap.Int("strategyIdx", strategyIdx), zap.String("submissionURL", submissionURL), zap.String("logID", hex.EncodeToString(sct.LogID.KeyID[:])), zap.Uint64("timestamp", sct.Timestamp))
 	events <- submissionEvent{strategyIdx: strategyIdx, eventType: eventSuccess, response: addChainResponse, sct: sct, outcome: "Submission successful", timeTaken: timeTaken}
 	s.mon.RecordSubmissionOutcome(submissionURL, "success")
 }

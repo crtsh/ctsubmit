@@ -1,8 +1,12 @@
 package logger
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"math"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -20,6 +24,22 @@ var (
 	ShutdownWG           sync.WaitGroup
 	XFFUseFirstIPAddress bool
 )
+
+// instancePrefix distinguishes request IDs minted by different ctsubmit processes, because
+// fasthttp's request counter restarts from zero every time the process does.
+var instancePrefix = newInstancePrefix()
+
+func newInstancePrefix() string {
+	var b [4]byte
+	_, _ = rand.Read(b[:]) // Cannot fail; crypto/rand panics rather than returning an error.
+	return hex.EncodeToString(b[:])
+}
+
+// RequestID returns an identifier for this request that is unique across ctsubmit processes:
+// the per-process prefix, plus fasthttp's (connection ID << 32 | request number) counter pair.
+func RequestID(fhctx *fasthttp.RequestCtx) string {
+	return instancePrefix + "-" + strconv.FormatUint(fhctx.ID(), 16)
+}
 
 // InitLogger builds the application's zap.Logger from cfg and returns it for
 // injection into the components that need it; the logger package no longer
@@ -71,6 +91,22 @@ func SetDetails(fhctx *fasthttp.RequestCtx, level zapcore.Level, msg string, err
 	}
 }
 
+type loggerContextKey struct{}
+
+// NewContext returns a copy of ctx carrying lgr, so that components handling a request can log
+// with the request-scoped fields (request_id, etc) that the caller attached to it.
+func NewContext(ctx context.Context, lgr *zap.Logger) context.Context {
+	return context.WithValue(ctx, loggerContextKey{}, lgr)
+}
+
+// FromContext returns the logger stored in ctx by NewContext, or fallback if there isn't one.
+func FromContext(ctx context.Context, fallback *zap.Logger) *zap.Logger {
+	if lgr, ok := ctx.Value(loggerContextKey{}).(*zap.Logger); ok && lgr != nil {
+		return lgr
+	}
+	return fallback
+}
+
 func getRealClientIP(fhctx *fasthttp.RequestCtx) string {
 	remoteAddr := fhctx.RemoteAddr().String()
 	// Split host and port - handling both IPv4 and IPv6.
@@ -98,6 +134,7 @@ func LogRequest(lgr *zap.Logger, fhctx *fasthttp.RequestCtx) {
 		zap.Int("http_status", fhctx.Response.StatusCode()),
 		zap.ByteString("protocol", fhctx.Request.Header.Protocol()),
 		zap.ByteString("raw_path", fhctx.RequestURI()),
+		zap.String("request_id", RequestID(fhctx)),
 		zap.Int("response_body_size", len(fhctx.Response.Body())),
 		zap.Duration("time_taken_ns", time.Since(fhctx.Time())),
 	}
