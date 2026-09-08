@@ -16,8 +16,8 @@ github.com/crtsh/ccadb_data v1.20260902.132537 h1:FEs6uken4U67F9oMKvNIDo2WkkoATo
 github.com/crtsh/ccadb_data v1.20260902.132537/go.mod h1:avWCZWp3bwPa5XuUWNoCeHgMUdOW2tccdnUJHvfmc74=
 github.com/crtsh/ctlint v0.0.0-20260904105526-3e459385daf1 h1:G3umt1Q/pVsahm/x1H92vbp50qh64yRyLwAI5RegnGQ=
 github.com/crtsh/ctlint v0.0.0-20260904105526-3e459385daf1/go.mod h1:PXepGof3x7n52HWMgm9NfbDTCoDOGB9L6NyUZX71NEM=
-github.com/crtsh/ctloglists v1.20260907.190103 h1:lJ0cSmInzvz0Ul7qJPd26OVTV7vApniiX4+KEdDEDOA=
-github.com/crtsh/ctloglists v1.20260907.190103/go.mod h1:qico6//22OeMcK1VuwMQvsyKrXqtpAvHjzSfHx+RMmo=
+github.com/crtsh/ctloglists v1.20260907.223228 h1:BQfQMF/SWPW0iC4XtPU9vNS/37Th4ZrvUGcmjrff64g=
+github.com/crtsh/ctloglists v1.20260907.223228/go.mod h1:qico6//22OeMcK1VuwMQvsyKrXqtpAvHjzSfHx+RMmo=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=
 github.com/frankban/quicktest v1.14.6/go.mod h1:4ptaffx2x8+WTWXmUCuVU6aPUX1/Mz7zb5vbUoiM6w0=
@@ -51,8 +51,8 @@ github.com/jackc/pgpassfile v1.0.0 h1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsI
 github.com/jackc/pgpassfile v1.0.0/go.mod h1:CEx0iS5ambNFdcRtxPj5JhEz+xB6uRky5eyVu/W2HEg=
 github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 h1:iCEnooe7UlwOQYpKFhBabPMi4aNAfoODPEFNiAnClxo=
 github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761/go.mod h1:5TJZWKEWniPve33vlWYSoGYefn3gLQRzjfDlhSJ9ZKM=
-github.com/jackc/pgx/v5 v5.10.0 h1:VhSvgU2jSli8o3AqIEOTJr7rZwAEUVo4E4XhR94Zfr0=
-github.com/jackc/pgx/v5 v5.10.0/go.mod h1:mal1tBGAFfLHvZzaYh77YS/eC6IX9OWbRV1QIIM0Jn4=
+github.com/jackc/pgx/v5 v5.11.0 h1:IzBBtyK9AHqf98cctWFifYSci2hgQR/cd56wB4p+ogg=
+github.com/jackc/pgx/v5 v5.11.0/go.mod h1:mal1tBGAFfLHvZzaYh77YS/eC6IX9OWbRV1QIIM0Jn4=
 github.com/jackc/puddle/v2 v2.2.2 h1:PR8nw+E/1w0GLuRFSmiioY6UooMp6KJv0/61nB7icHo=
 github.com/jackc/puddle/v2 v2.2.2/go.mod h1:vriiEXHvEE654aYKXXjOvZM39qJ0q+azkZFrfEOc3H4=
 github.com/klauspost/compress v1.20.0 h1:a3C1ke2ohxFymNlb2HWAHjDeKCI90scRskErZkR0ezA=
