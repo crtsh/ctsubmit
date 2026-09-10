@@ -70,6 +70,10 @@ func validateLogList(logList *loglist3.LogList) error {
 			if log.URL == "" {
 				return fmt.Errorf("log %q: url is required", log.Description)
 			}
+			// Every custom log must be a test log, so it can never leak into the usable/active log lists.
+			if log.Type != "test" {
+				return fmt.Errorf("log %q: log_type must be \"test\", got %q", log.Description, log.Type)
+			}
 			if err := validateLogID(log.LogID, log.Key); err != nil {
 				return fmt.Errorf("log %q: %w", log.Description, err)
 			}
@@ -80,6 +84,10 @@ func validateLogList(logList *loglist3.LogList) error {
 			}
 			if tiledLog.MonitoringURL == "" {
 				return fmt.Errorf("tiled log %q: monitoring_url is required", tiledLog.Description)
+			}
+			// Every custom log must be a test log, so it can never leak into the usable/active log lists.
+			if tiledLog.Type != "test" {
+				return fmt.Errorf("tiled log %q: log_type must be \"test\", got %q", tiledLog.Description, tiledLog.Type)
 			}
 			if err := validateLogID(tiledLog.LogID, tiledLog.Key); err != nil {
 				return fmt.Errorf("tiled log %q: %w", tiledLog.Description, err)
