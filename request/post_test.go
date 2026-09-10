@@ -162,6 +162,25 @@ func TestPOSTJSONProblemOnInvalidJSON(t *testing.T) {
 	}
 }
 
+func TestPOSTInvalidFormatReturnsJSONProblem(t *testing.T) {
+	client := newInmemHandlerClient(t)
+
+	status, contentType, body := doPOST(t, client, "add-chain?format=xml", "application/json", `{"chain":["AQID"]}`)
+
+	if status != fasthttp.StatusBadRequest {
+		t.Fatalf("status: got %d, want 400", status)
+	}
+	if !strings.Contains(contentType, "problem+json") {
+		t.Fatalf("content type: got %q, want application/problem+json", contentType)
+	}
+	if body == "" {
+		t.Fatal("expected a non-empty error body, got empty")
+	}
+	if !strings.Contains(body, "format") || !strings.Contains(body, "xml") {
+		t.Fatalf("expected the problem detail to name the rejected parameter and value, got %q", body)
+	}
+}
+
 func TestPOSTHTMLErrorResponse(t *testing.T) {
 	client := newInmemHandlerClient(t)
 

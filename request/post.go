@@ -75,7 +75,8 @@ func POST(fhctx *fasthttp.RequestCtx, path string, cfg *config.Settings, sub *su
 
 	responseFormat := getResponseFormat(fhctx)
 	if responseFormat == -1 {
-		err = fmt.Errorf("unrecognised response format")
+		err = fmt.Errorf("invalid value for query parameter 'format': '%s'; supported: html, json", paramS(fhctx, "format"))
+		status = sendJSONProblem(fhctx, status, nil, err)
 		return status
 	}
 
