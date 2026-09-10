@@ -44,6 +44,7 @@ func writeCustomTestLogList(t *testing.T, timestamp string) (string, [sha256.Siz
 						"key":         base64.StdEncoding.EncodeToString(spki),
 						"url":         "https://custom.test.log.example.com/",
 						"mmd":         86400,
+						"log_type":    "test",
 					},
 				},
 			},
@@ -187,25 +188,33 @@ func TestValidateLogList(t *testing.T) {
 		wantError bool
 	}{
 		"valid log": {
-			logList: newLogList(&loglist3.Log{LogID: logID[:], Key: spki, URL: "https://log.example.com/"}, nil),
+			logList: newLogList(&loglist3.Log{LogID: logID[:], Key: spki, URL: "https://log.example.com/", Type: "test"}, nil),
 		},
 		"valid tiled log": {
-			logList: newLogList(nil, &loglist3.TiledLog{LogID: logID[:], Key: spki, SubmissionURL: "https://log.example.com/", MonitoringURL: "https://log.example.com/"}),
+			logList: newLogList(nil, &loglist3.TiledLog{LogID: logID[:], Key: spki, SubmissionURL: "https://log.example.com/", MonitoringURL: "https://log.example.com/", Type: "test"}),
 		},
 		"log without url": {
-			logList:   newLogList(&loglist3.Log{LogID: logID[:], Key: spki}, nil),
+			logList:   newLogList(&loglist3.Log{LogID: logID[:], Key: spki, Type: "test"}, nil),
+			wantError: true,
+		},
+		"log without test marker": {
+			logList:   newLogList(&loglist3.Log{LogID: logID[:], Key: spki, URL: "https://log.example.com/"}, nil),
 			wantError: true,
 		},
 		"tiled log without submission_url": {
-			logList:   newLogList(nil, &loglist3.TiledLog{LogID: logID[:], Key: spki, MonitoringURL: "https://log.example.com/"}),
+			logList:   newLogList(nil, &loglist3.TiledLog{LogID: logID[:], Key: spki, MonitoringURL: "https://log.example.com/", Type: "test"}),
 			wantError: true,
 		},
 		"tiled log without monitoring_url": {
-			logList:   newLogList(nil, &loglist3.TiledLog{LogID: logID[:], Key: spki, SubmissionURL: "https://log.example.com/"}),
+			logList:   newLogList(nil, &loglist3.TiledLog{LogID: logID[:], Key: spki, SubmissionURL: "https://log.example.com/", Type: "test"}),
+			wantError: true,
+		},
+		"tiled log without test marker": {
+			logList:   newLogList(nil, &loglist3.TiledLog{LogID: logID[:], Key: spki, SubmissionURL: "https://log.example.com/", MonitoringURL: "https://log.example.com/"}),
 			wantError: true,
 		},
 		"log_id does not match key": {
-			logList:   newLogList(&loglist3.Log{LogID: make([]byte, sha256.Size), Key: spki, URL: "https://log.example.com/"}, nil),
+			logList:   newLogList(&loglist3.Log{LogID: make([]byte, sha256.Size), Key: spki, URL: "https://log.example.com/", Type: "test"}, nil),
 			wantError: true,
 		},
 	}
