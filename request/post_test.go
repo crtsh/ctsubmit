@@ -69,6 +69,14 @@ func TestPOSTEmptyBodyReturnsBadRequest(t *testing.T) {
 	if got := POST(ctx, "add-chain", config.MustLoad(), testSubmitter(), health.New(), zap.NewNop()); got != fasthttp.StatusBadRequest {
 		t.Fatalf("expected 400 for empty body, got %d", got)
 	}
+
+	body := string(ctx.Response.Body())
+	if body == "" {
+		t.Fatal("expected a non-empty error body for an empty request, got empty")
+	}
+	if !strings.Contains(body, "chain") {
+		t.Fatalf("expected the error body to mention the required 'chain' field, got %q", body)
+	}
 }
 
 func TestPOSTTimeoutReturnsMinusOne(t *testing.T) {

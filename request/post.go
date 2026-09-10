@@ -82,7 +82,8 @@ func POST(fhctx *fasthttp.RequestCtx, path string, cfg *config.Settings, sub *su
 
 	requestBody := fhctx.Request.Body()
 	if len(requestBody) == 0 {
-		err = fmt.Errorf("empty request body")
+		err = fmt.Errorf("request body is empty; expected JSON object with required field 'chain'")
+		status = sendResponse(fhctx, cfg, responseFormat, nil, err)
 		return status
 	}
 
@@ -107,16 +108,7 @@ func POST(fhctx *fasthttp.RequestCtx, path string, cfg *config.Settings, sub *su
 	fhctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
 
 	// Send response.
-	switch responseFormat {
-	case config.RESPONSEFORMAT_HTML:
-		status = sendHTMLResponse(fhctx, submissionResponse, err)
-	case config.RESPONSEFORMAT_JSON:
-		if err == nil {
-			status = sendJSONResponse(fhctx, cfg, submissionResponse)
-		} else {
-			status = sendJSONProblem(fhctx, status, submissionResponse, err)
-		}
-	}
+	status = sendResponse(fhctx, cfg, responseFormat, submissionResponse, err)
 	return status
 }
 
@@ -136,6 +128,21 @@ func paramB(fhctx *fasthttp.RequestCtx, name string) []byte {
 	}
 
 	return nil
+}
+
+// sendResponse writes submissionResponse (or err) in the requested format,
+// returning the resulting HTTP status code.
+func sendResponse(fhctx *fasthttp.RequestCtx, cfg *config.Settings, responseFormat config.ResponseFormat, submissionResponse *submitter.SubmissionResponse, err error) int {
+	switch responseFormat {
+	case config.RESPONSEFORMAT_HTML:
+		return sendHTMLResponse(fhctx, submissionResponse, err)
+	case config.RESPONSEFORMAT_JSON:
+		if err == nil {
+			return sendJSONResponse(fhctx, cfg, submissionResponse)
+		}
+		return sendJSONProblem(fhctx, fasthttp.StatusBadRequest, submissionResponse, err)
+	}
+	return fasthttp.StatusBadRequest
 }
 
 func sendHTMLResponse(fhctx *fasthttp.RequestCtx, submissionResponse *submitter.SubmissionResponse, err error) int {
