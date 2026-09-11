@@ -5,8 +5,8 @@ go 1.26.7
 require (
 	filippo.io/sunlight v0.9.0
 	github.com/crtsh/ccadb_data v1.20260909.204222
-	github.com/crtsh/ctlint v0.0.0-20260910105708-980f3b3e5a4a
-	github.com/crtsh/ctloglists v1.20260911.83655
+	github.com/crtsh/ctlint v0.0.0-20260911104509-eb83a4ad95f2
+	github.com/crtsh/ctloglists v1.20260911.203053
 	github.com/goccy/go-json v0.10.6
 	github.com/google/certificate-transparency-go v1.3.3
 	github.com/prometheus/client_golang v1.24.1
@@ -56,7 +56,7 @@ require (
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260908043556-f8649ddbbfe6 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260911204522-f61a6ca850bd // indirect
 	google.golang.org/grpc v1.83.2 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
