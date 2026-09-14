@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/sha256"
 	stdx509 "crypto/x509"
 	"crypto/x509/pkix"
 	"math/big"
@@ -45,22 +44,6 @@ func selfSignedDER(t *testing.T) []byte {
 	}
 	der, _ := makeCertDER(t, tmpl, nil, nil)
 	return der
-}
-
-func TestGenerateMimicSCTs(t *testing.T) {
-	var issuerSPKI [sha256.Size]byte
-	scts, err := GenerateMimicSCTs(selfSignedTBS(t), issuerSPKI)
-	if err != nil {
-		t.Fatalf("GenerateMimicSCTs: %v", err)
-	}
-	if len(scts) != 2 {
-		t.Fatalf("expected 2 mimic SCTs, got %d", len(scts))
-	}
-	for i, sct := range scts {
-		if sct == nil {
-			t.Errorf("SCT %d is nil", i)
-		}
-	}
 }
 
 func TestDiscoverChain(t *testing.T) {

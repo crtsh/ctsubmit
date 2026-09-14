@@ -4,8 +4,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/crtsh/ctsubmit/loglists"
@@ -19,14 +19,7 @@ func init() {
 }
 
 // Matches https://googlechrome.github.io/CertificateTransparency/mimics/mimic1.pem
-var mimic1PrivateKey = &ecdsa.PrivateKey{
-	PublicKey: ecdsa.PublicKey{
-		Curve: elliptic.P256(),
-		X:     fromHexString("74EFFE7671FF35948148B9A637DBB68781CD4E708E2DE53EA0C0624729C8BD0F"),
-		Y:     fromHexString("33B767EDD083323BDD1EE67C12682758BC0E09546CC231AADFB3D0DC371158D6"),
-	},
-	D: fromHexString("777B0EF312E25246B4B155DC4D80C75FF5A437DC84EDA21A67C0F9A55C769620"),
-}
+var mimic1PrivateKey = mustParsePrivateKey("777B0EF312E25246B4B155DC4D80C75FF5A437DC84EDA21A67C0F9A55C769620")
 var mimic1LogID = ctgo.LogID{
 	KeyID: [sha256.Size]byte{
 		0xF4, 0x41, 0x95, 0xD6, 0xF0, 0x0E, 0x2D, 0xB5, 0x54, 0x35, 0xCA, 0xDD, 0x57, 0x78, 0x92, 0xE5,
@@ -35,14 +28,7 @@ var mimic1LogID = ctgo.LogID{
 }
 
 // Matches https://googlechrome.github.io/CertificateTransparency/mimics/mimic2.pem
-var mimic2PrivateKey = &ecdsa.PrivateKey{
-	PublicKey: ecdsa.PublicKey{
-		Curve: elliptic.P256(),
-		X:     fromHexString("07F56D70BEC149B18FE1063B52369A5CE778810F344753F12D9B5F6227E4F991"),
-		Y:     fromHexString("11FA609525556397AEAE556533BB994C6D631BD4C58AC6392FB5DD8CC9048AB0"),
-	},
-	D: fromHexString("6A88796F01A7682CE40DBBDD45F6C24ED02B0EEA13E659EF6704A227F963FF86"),
-}
+var mimic2PrivateKey = mustParsePrivateKey("6A88796F01A7682CE40DBBDD45F6C24ED02B0EEA13E659EF6704A227F963FF86")
 var mimic2LogID = ctgo.LogID{
 	KeyID: [sha256.Size]byte{
 		0xB2, 0x2F, 0x7E, 0xDE, 0xB5, 0xAF, 0x6A, 0xFE, 0x50, 0x3D, 0xE0, 0x40, 0x81, 0xB2, 0xD7, 0x4C,
@@ -50,12 +36,18 @@ var mimic2LogID = ctgo.LogID{
 	},
 }
 
-func fromHexString(base16 string) *big.Int {
-	i, ok := new(big.Int).SetString(base16, 16)
-	if !ok {
-		panic("bad number: " + base16)
+// mustParsePrivateKey builds a P-256 key from its raw scalar, deriving the
+// public key so we avoid the deprecated ecdsa X/Y/D fields.
+func mustParsePrivateKey(hexD string) *ecdsa.PrivateKey {
+	raw, err := hex.DecodeString(hexD)
+	if err != nil {
+		panic("bad private key hex: " + hexD)
 	}
-	return i
+	key, err := ecdsa.ParseRawPrivateKey(elliptic.P256(), raw)
+	if err != nil {
+		panic("invalid mimic private key: " + err.Error())
+	}
+	return key
 }
 
 func GenerateMimicSCTs(detoxedTBSCert []byte, sha256IssuerSPKI [sha256.Size]byte) ([]*ctgo.SignedCertificateTimestamp, error) {
