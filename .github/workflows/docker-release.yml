@@ -88,3 +88,27 @@ jobs:
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      # Assert the architecture of every ELF in the arm64 image without
+      # executing anything. Executing the arm64 image on this amd64 runner would
+      # succeed even with a wrong-arch binary, because setup-qemu-action
+      # registers x86-64 emulation (this is how #389 shipped an x86-64 tini in
+      # the arm64 release image). Reading the ELF e_machine field (offset 0x12;
+      # b7 00 = aarch64) catches a wrong-arch binary regardless of emulation,
+      # for any file added to the image.
+      - name: Assert arm64 binary architectures
+        run: |
+          IMAGE=$(printf '%s\n' "${{ steps.meta.outputs.tags }}" | head -n1)
+          cid=$(docker create --platform linux/arm64 "$IMAGE")
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          rc=0
+          for f in app/ctsubmit sbin/tini; do
+            machine=$(docker cp "$cid:/$f" - | tar -xO | od -An -tx1 -j18 -N2 | tr -d ' ')
+            if [ "$machine" = "b700" ]; then
+              echo "/$f: aarch64 (b7 00) OK"
+            else
+              echo "/$f: expected aarch64 (b7 00) but found e_machine bytes '$machine'"
+              rc=1
+            fi
+          done
+          exit $rc

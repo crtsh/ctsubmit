@@ -90,6 +90,29 @@ jobs:
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
+      # Assert the architecture of every ELF in the arm64 image without
+      # executing anything. The smoke test below runs under QEMU (registered by
+      # setup-qemu-action), so an x86-64 binary in the arm64 image would still
+      # run and pass there (this is how #389 slipped through). Reading the ELF
+      # e_machine field (offset 0x12; b7 00 = aarch64) catches a wrong-arch
+      # binary regardless of emulation, for any file added to the image.
+      - name: Assert arm64 binary architectures
+        run: |
+          IMAGE="ghcr.io/crtsh/ctsubmit-dev:${{ steps.vars.outputs.CONTAINER_TIMESTAMP }}"
+          cid=$(docker create --platform linux/arm64 "$IMAGE")
+          trap 'docker rm -f "$cid" >/dev/null 2>&1 || true' EXIT
+          rc=0
+          for f in app/ctsubmit sbin/tini; do
+            machine=$(docker cp "$cid:/$f" - | tar -xO | od -An -tx1 -j18 -N2 | tr -d ' ')
+            if [ "$machine" = "b700" ]; then
+              echo "/$f: aarch64 (b7 00) OK"
+            else
+              echo "/$f: expected aarch64 (b7 00) but found e_machine bytes '$machine'"
+              rc=1
+            fi
+          done
+          exit $rc
+
       # Verify the arm64 manifest entry actually runs. The build job runs on an
       # amd64 runner, so without this the arm64 binary is never executed in CI
       # (this is how #377 shipped an x86-64 binary in the arm64 image). livez
