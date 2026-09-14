@@ -89,3 +89,25 @@ jobs:
         run: |
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      # Verify the arm64 manifest entry actually runs. The build job runs on an
+      # amd64 runner, so without this the arm64 binary is never executed in CI
+      # (this is how #377 shipped an x86-64 binary in the arm64 image). livez
+      # goes OK as soon as the HTTP server is up, independent of external CT-log
+      # data. QEMU-emulated startup is slower, so allow a generous window.
+      - name: Smoke test the published image (arm64)
+        run: |
+          IMAGE="ghcr.io/crtsh/ctsubmit-dev:${{ steps.vars.outputs.CONTAINER_TIMESTAMP }}"
+          docker run -d --name ctsubmit-arm64 --platform linux/arm64 -p 8091:8081 "$IMAGE"
+          for i in $(seq 1 120); do
+            if curl -fsS http://127.0.0.1:8091/livez >/dev/null 2>&1; then
+              echo "arm64 image is live."
+              docker rm -f ctsubmit-arm64 || true
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Timed out waiting for arm64 image to become live."
+          docker logs ctsubmit-arm64 || true
+          docker rm -f ctsubmit-arm64 || true
+          exit 1
