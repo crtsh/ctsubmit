@@ -89,7 +89,10 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          version: v2.12.2
+          # golangci-lint only supports Go versions lower than or equal to the
+          # one it was built with, so this must be a release built with go1.27
+          # or newer. See https://github.com/golangci/golangci-lint/issues/6643
+          version: v2.13.2
 
   govulncheck:
     runs-on: ubuntu-latest
