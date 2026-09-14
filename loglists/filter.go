@@ -111,7 +111,7 @@ func determineActiveTLSLogs() {
 		}
 		op.TiledLogs = []*loglist3.TiledLog{}
 		for _, tiledLog := range operator.TiledLogs {
-			if tiledLog.Type != "test" {
+			if tiledLog.Type != "test" && ctloglists.BimiV3Approved.FindTiledLogByURL(tiledLog.SubmissionURL) == nil {
 				op.TiledLogs = append(op.TiledLogs, tiledLog)
 			}
 		}
@@ -127,13 +127,13 @@ func determineTestTLSLogs() {
 		op := *operator
 		op.Logs = []*loglist3.Log{}
 		for _, log := range operator.Logs {
-			if log.Type == "test" && ctloglists.BimiV3Approved.FindTiledLogByURL(log.URL) == nil {
+			if log.Type == "test" && ctloglists.BimiV3Approved.FindLogByURL(log.URL) == nil {
 				op.Logs = append(op.Logs, log)
 			}
 		}
 		op.TiledLogs = []*loglist3.TiledLog{}
 		for _, tiledLog := range operator.TiledLogs {
-			if tiledLog.Type == "test" {
+			if tiledLog.Type == "test" && ctloglists.BimiV3Approved.FindTiledLogByURL(tiledLog.SubmissionURL) == nil {
 				op.TiledLogs = append(op.TiledLogs, tiledLog)
 			}
 		}
