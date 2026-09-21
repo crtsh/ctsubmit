@@ -5,7 +5,7 @@ go 1.27.1
 require (
 	filippo.io/sunlight v0.9.0
 	github.com/crtsh/ccadb_data v1.20260921.44314
-	github.com/crtsh/ctlint v0.0.0-20260919000302-e073f8fe092b
+	github.com/crtsh/ctlint v0.0.0-20260921154631-dfe9c907087e
 	github.com/crtsh/ctloglists v1.20260918.205400
 	github.com/goccy/go-json v0.10.6
 	github.com/google/certificate-transparency-go v1.3.3
@@ -29,7 +29,7 @@ require (
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-sql-driver/mysql v1.10.1 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
-	github.com/google/trillian v1.7.3 // indirect
+	github.com/google/trillian v1.8.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
@@ -56,7 +56,7 @@ require (
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260918162117-cecb64721679 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260921155816-b14227669459 // indirect
 	google.golang.org/grpc v1.84.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
