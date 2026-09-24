@@ -3,8 +3,8 @@ module github.com/crtsh/ctsubmit
 go 1.27.1
 
 require (
-	filippo.io/sunlight v0.9.0
-	github.com/crtsh/ccadb_data v1.20260922.183755
+	filippo.io/sunlight v0.10.0
+	github.com/crtsh/ccadb_data v1.20260924.144410
 	github.com/crtsh/ctlint v0.0.0-20260922114041-9c9228820e45
 	github.com/crtsh/ctloglists v1.20260918.205400
 	github.com/goccy/go-json v0.10.6
