@@ -1,11 +1,9 @@
 filippo.io/edwards25519 v1.2.0 h1:crnVqOiS4jqYleHd9vaKZ+HKtHfllngJIiOpNpoJsjo=
 filippo.io/edwards25519 v1.2.0/go.mod h1:xzAOLCNug/yB62zG1bQ8uziwrIqIuxhctzJT18Q77mc=
-filippo.io/mldsa v0.0.0-20260711112038-ff3f469cee29 h1:11cJmDX5FvZu/znhVjfwxs9jZcos6d8O6Bc9Fpdv87Y=
-filippo.io/mldsa v0.0.0-20260711112038-ff3f469cee29/go.mod h1:32qQ5yj3R24Eu03iWFWchdC3OB653wPvoepWejkefbY=
 filippo.io/sunlight v0.9.0 h1:YQnOlIjRuTsXzsXJdm+MMivu6OndV94iq/sMDASOn4k=
 filippo.io/sunlight v0.9.0/go.mod h1:o/a7PJt6Bw0bYhWnZDC8hHAUEQShVxUgsvltrHF/KoQ=
-filippo.io/torchwood v0.9.1-0.20260706112420-c22a68158d96 h1:TudMUuGAGLkZJBDwmtYqaNU01zGxsa6eE8ZqiQPNmPY=
-filippo.io/torchwood v0.9.1-0.20260706112420-c22a68158d96/go.mod h1:0PCbID7CT1MlVWx2upf6qN9QFHV1k9lR7PFXAYeExMk=
+filippo.io/torchwood v0.10.0 h1:zgBIImawK53X7lM0qHKcjn0pbDtFLqU04NU9qDvBnjs=
+filippo.io/torchwood v0.10.0/go.mod h1:hZt8lhTBBCK77TmuK+q0D7mNcnt2ovQkJs+zdonDRog=
 github.com/DATA-DOG/go-sqlmock v1.5.2 h1:OcvFkGmslmlZibjAjaHm3L//6LiuBgolP7OputlJIzU=
 github.com/DATA-DOG/go-sqlmock v1.5.2/go.mod h1:88MAG/4G7SMwSE3CeA0ZKzrT5CiOU3OJ+JlNzwDqpNU=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
