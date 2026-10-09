@@ -4,7 +4,7 @@ go 1.27.1
 
 require (
 	filippo.io/sunlight v0.10.0
-	github.com/crtsh/ccadb_data v1.20261009.84137
+	github.com/crtsh/ccadb_data v1.20261009.204307
 	github.com/crtsh/ctlint v0.0.0-20261007112901-d9a1d9b66f85
 	github.com/crtsh/ctloglists v1.20260918.205400
 	github.com/goccy/go-json v0.11.2
@@ -15,7 +15,7 @@ require (
 	github.com/valyala/quicktemplate v1.8.0
 	go.uber.org/automaxprocs v1.6.0
 	go.uber.org/zap v1.28.0
-	golang.org/x/mod v0.41.0
+	golang.org/x/mod v0.42.0
 	schneider.vip/problem v1.9.1
 )
 
