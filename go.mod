@@ -4,8 +4,8 @@ go 1.27.1
 
 require (
 	filippo.io/sunlight v0.10.0
-	github.com/crtsh/ccadb_data v1.20261009.204307
-	github.com/crtsh/ctlint v0.0.0-20261007112901-d9a1d9b66f85
+	github.com/crtsh/ccadb_data v1.20261012.173332
+	github.com/crtsh/ctlint v0.0.0-20261012104436-90cc1c3a5da6
 	github.com/crtsh/ctloglists v1.20260918.205400
 	github.com/goccy/go-json v0.11.2
 	github.com/google/certificate-transparency-go v1.3.3
@@ -34,7 +34,7 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/pgx/v5 v5.11.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.3 // indirect
-	github.com/klauspost/compress v1.20.1 // indirect
+	github.com/klauspost/compress v1.20.3 // indirect
 	github.com/molecule-man/go-brrr v1.3.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
