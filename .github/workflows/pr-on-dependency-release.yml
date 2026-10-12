@@ -31,6 +31,14 @@ jobs:
           git config --global user.email "gh@ctsubm.it"
           git config --global user.name "ctsubmit"
 
+    # Keep in step with max_goversion_majmin in update_go_base_image.sh.
+    - name: Setup Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version: '1.27.x'
+        check-latest: true
+        cache: false
+
     - name: Run update_dependencies.sh
       run: chmod +x update_dependencies.sh; ./update_dependencies.sh
 
