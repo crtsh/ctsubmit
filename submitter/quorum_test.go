@@ -537,3 +537,39 @@ func TestWouldHelpStaticPreference(t *testing.T) {
 		t.Error("another RFC6962 log should not help once hard requirements and no static-eligible slot remain")
 	}
 }
+
+// --- canDropSafely ---
+
+func TestCanDropSafely(t *testing.T) {
+	strategy := []StrategyMember{
+		{LogType: LOGTYPE_RFC6962, Operator: "Operator A"},
+		{LogType: LOGTYPE_RFC6962, Operator: "Operator B"},
+		{LogType: LOGTYPE_STATIC, Operator: "Operator A"},
+	}
+
+	qs := newQuorumState()
+	qs.addSuccess(strategy, 0, ctgo.AddChainResponse{}, nil)
+	qs.addSuccess(strategy, 1, ctgo.AddChainResponse{}, nil)
+	qs.addSuccess(strategy, 2, ctgo.AddChainResponse{}, nil)
+
+	selected := []bool{true, true, true}
+
+	sr := &SubmissionRequest{
+		Operators: 2,
+	}
+
+	canDrop := qs.canDropSafely(1, selected, strategy, sr)
+	if canDrop {
+		t.Errorf("canDropSafely(1) = true, expected false! Should not let us drop the only diverse operator.")
+	}
+
+	canDrop = qs.canDropSafely(0, selected, strategy, sr)
+	if !canDrop {
+		t.Errorf("canDropSafely(0) = false, expected true! Should be safe to drop a duplicate operator.")
+	}
+
+	canDrop = qs.canDropSafely(2, selected, strategy, sr)
+	if !canDrop {
+		t.Errorf("canDropSafely(2) = false, expected true! Should be safe to drop a duplicate operator.")
+	}
+}

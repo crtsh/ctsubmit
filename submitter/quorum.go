@@ -132,7 +132,10 @@ func (qs *quorumState) trimToQuorum(sr *SubmissionRequest, strategy []StrategyMe
 			// If we now exceed sr.SCTs, drop a non-RFC6962 entry.
 			if count > sr.SCTs {
 				for i := len(qs.responses) - 1; i >= 0; i-- {
-					if selected[i] && strategy[qs.strategyIndices[i]].LogType != LOGTYPE_RFC6962 {
+					if !selected[i] {
+						continue
+					}
+					if strategy[qs.strategyIndices[i]].LogType != LOGTYPE_RFC6962 && qs.canDropSafely(i, selected, strategy, sr) {
 						selected[i] = false
 						count--
 						break
@@ -179,8 +182,7 @@ func (qs *quorumState) trimToQuorum(sr *SubmissionRequest, strategy []StrategyMe
 							continue
 						}
 					}
-					if strategy[si].LogType != LOGTYPE_STATIC {
-						selected[i] = false
+					if strategy[si].LogType != LOGTYPE_STATIC && qs.canDropSafely(i, selected, strategy, sr) {						selected[i] = false
 						count--
 						break
 					}
@@ -216,6 +218,32 @@ func (qs *quorumState) trimToQuorum(sr *SubmissionRequest, strategy []StrategyMe
 	qs.responses = responses
 	qs.scts = scts
 	qs.strategyIndices = strategyIndices
+}
+
+// canDropSafely returns true if dropping the SCT at dropIdx would still leave enough unique operators to satisfy the submission request.
+func (qs *quorumState) canDropSafely(dropIdx int, selected []bool, strategy []StrategyMember, sr *SubmissionRequest) bool {
+	droppedOp := strategy[qs.strategyIndices[dropIdx]].Operator
+	for j, sj := range qs.strategyIndices {
+		if j != dropIdx && selected[j] && strategy[sj].Operator == droppedOp {
+			return true
+		}
+	}
+
+	// If the dropped operator was unique, we must ensure the remaining selected operators are sufficient.
+	// We use a map-based O(N) approach to calculate the total unique operators remaining, preventing O(N^3) scaling.
+	seen := make(map[string]bool)
+	totalUnique := 0
+	for j, sj := range qs.strategyIndices {
+		if j != dropIdx && selected[j] {
+			op := strategy[sj].Operator
+			if !seen[op] {
+				seen[op] = true
+				totalUnique++
+			}
+		}
+	}
+
+	return totalUnique >= sr.Operators
 }
 
 // helpsQuorum returns true if the given strategy member would contribute toward
