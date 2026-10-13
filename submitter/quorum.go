@@ -182,7 +182,8 @@ func (qs *quorumState) trimToQuorum(sr *SubmissionRequest, strategy []StrategyMe
 							continue
 						}
 					}
-					if strategy[si].LogType != LOGTYPE_STATIC && qs.canDropSafely(i, selected, strategy, sr) {						selected[i] = false
+					if strategy[si].LogType != LOGTYPE_STATIC && qs.canDropSafely(i, selected, strategy, sr) {
+						selected[i] = false
 						count--
 						break
 					}
