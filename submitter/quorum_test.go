@@ -495,6 +495,72 @@ func TestTrimToQuorumDropsExcessWhenSwappingRFC6962(t *testing.T) {
 	}
 }
 
+func TestTrimToQuorumPreservesOperatorDiversityWhenSwapping(t *testing.T) {
+	// Each strategy is listed in success order, ending with the SCT that first meets quorum.
+	tests := []struct {
+		name     string
+		strategy []StrategyMember
+	}{
+		{
+			name: "RFC6962 swap",
+			strategy: makeStrategy(
+				makeSM("A", LOGTYPE_STATIC),
+				makeSM("B", LOGTYPE_STATIC),
+				makeSM("A", LOGTYPE_RFC6962),
+			),
+		},
+		{
+			name: "Static swap",
+			strategy: makeStrategy(
+				makeSM("A", LOGTYPE_RFC6962),
+				makeSM("A", LOGTYPE_RFC6962),
+				makeSM("A", LOGTYPE_STATIC),
+				makeSM("B", LOGTYPE_RFC6962),
+			),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sr := NewSubmissionRequest()
+			sr.SCTs = 2
+			sr.Operators = 2
+			sr.RequireAtLeastOneRFC6962SCT = true
+			sr.PreferAtLeastOneStaticSCT = true
+
+			qs := newQuorumState()
+			for i := range tt.strategy {
+				qs.addSuccess(tt.strategy, i, dummyResponse(), dummySCT())
+			}
+			if !qs.isQuorumMet(sr) {
+				t.Fatal("test setup should meet quorum before trimming")
+			}
+
+			qs.trimToQuorum(sr, tt.strategy)
+
+			if len(qs.responses) != sr.SCTs {
+				t.Fatalf("expected %d SCTs after trim, got %d", sr.SCTs, len(qs.responses))
+			}
+			operators := make(map[string]bool)
+			hasRFC6962, hasStatic := false, false
+			for _, si := range qs.strategyIndices {
+				operators[tt.strategy[si].Operator] = true
+				hasRFC6962 = hasRFC6962 || tt.strategy[si].LogType == LOGTYPE_RFC6962
+				hasStatic = hasStatic || tt.strategy[si].LogType == LOGTYPE_STATIC
+			}
+			if len(operators) < sr.Operators {
+				t.Errorf("expected at least %d distinct operators after trim, got %d", sr.Operators, len(operators))
+			}
+			if !hasRFC6962 {
+				t.Error("trim should retain the required RFC6962 SCT")
+			}
+			if !hasStatic {
+				t.Error("trim should retain the preferred Static SCT")
+			}
+		})
+	}
+}
+
 func TestHelpsQuorumStaticPreference(t *testing.T) {
 	sr := NewSubmissionRequest()
 	sr.SCTs = 1
