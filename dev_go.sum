@@ -1,7 +1,7 @@
 filippo.io/edwards25519 v1.2.0 h1:crnVqOiS4jqYleHd9vaKZ+HKtHfllngJIiOpNpoJsjo=
 filippo.io/edwards25519 v1.2.0/go.mod h1:xzAOLCNug/yB62zG1bQ8uziwrIqIuxhctzJT18Q77mc=
-filippo.io/sunlight v0.10.0 h1:biq77J6wu7vTFOTYpqgEYNgsKf3DNiw6N/TcAoQ0/qI=
-filippo.io/sunlight v0.10.0/go.mod h1:Ib2R5tbiMVPoEGakpqrAcLeZVRj4rB4+ImpR8cPDk/4=
+filippo.io/sunlight v0.10.1 h1:/nmWLybRgipLNibPRxHKSbowqP/73i8p2z/vdPn5YY0=
+filippo.io/sunlight v0.10.1/go.mod h1:Ib2R5tbiMVPoEGakpqrAcLeZVRj4rB4+ImpR8cPDk/4=
 filippo.io/torchwood v0.10.0 h1:zgBIImawK53X7lM0qHKcjn0pbDtFLqU04NU9qDvBnjs=
 filippo.io/torchwood v0.10.0/go.mod h1:hZt8lhTBBCK77TmuK+q0D7mNcnt2ovQkJs+zdonDRog=
 github.com/DATA-DOG/go-sqlmock v1.5.2 h1:OcvFkGmslmlZibjAjaHm3L//6LiuBgolP7OputlJIzU=
@@ -33,8 +33,8 @@ github.com/golang/mock v1.7.0-rc.1 h1:YojYx61/OLFsiv6Rw1Z96LpldJIy31o+UHmwAUMJ6/
 github.com/golang/mock v1.7.0-rc.1/go.mod h1:s42URUywIqd+OcERslBJvOjepvNymP31m3q8d/GkuRs=
 github.com/golang/protobuf v1.5.4 h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=
 github.com/golang/protobuf v1.5.4/go.mod h1:lnTiLA8Wa4RWRcIUkrtSVa5nRhsEGBg48fD6rSs7xps=
-github.com/google/certificate-transparency-go v1.3.3 h1:hq/rSxztSkXN2tx/3jQqF6Xc0O565UQPdHrOWvZwybo=
-github.com/google/certificate-transparency-go v1.3.3/go.mod h1:iR17ZgSaXRzSa5qvjFl8TnVD5h8ky2JMVio+dzoKMgA=
+github.com/google/certificate-transparency-go v1.4.0 h1:78uNaR2knzCoKKXXDSAGVkz9XPkDg5xXJRP9tP6+rr0=
+github.com/google/certificate-transparency-go v1.4.0/go.mod h1:iR17ZgSaXRzSa5qvjFl8TnVD5h8ky2JMVio+dzoKMgA=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
 github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
 github.com/google/trillian v1.8.0 h1:AnbjOFFMQyvqpPAARj97CKEXmoSpCy2hZw0T7Y1Y0BA=
