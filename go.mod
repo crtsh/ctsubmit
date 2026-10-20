@@ -3,12 +3,12 @@ module github.com/crtsh/ctsubmit
 go 1.27.2
 
 require (
-	filippo.io/sunlight v0.10.0
+	filippo.io/sunlight v0.10.1
 	github.com/crtsh/ccadb_data v1.20261018.175420
 	github.com/crtsh/ctlint v0.0.0-20261019111025-e07bc1ad9889
 	github.com/crtsh/ctloglists v1.20261019.165700
 	github.com/goccy/go-json v0.11.2
-	github.com/google/certificate-transparency-go v1.3.3
+	github.com/google/certificate-transparency-go v1.4.0
 	github.com/prometheus/client_golang v1.25.0
 	github.com/spf13/viper v1.21.0
 	github.com/valyala/fasthttp v1.76.0
@@ -55,7 +55,7 @@ require (
 	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20261012220534-4341edf3f941 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20261019180522-ce908d29299b // indirect
 	google.golang.org/grpc v1.84.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	k8s.io/klog/v2 v2.140.0 // indirect
