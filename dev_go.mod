@@ -4,8 +4,8 @@ go 1.27.3
 
 require (
 	filippo.io/sunlight v0.10.1
-	github.com/crtsh/ccadb_data v1.20261022.145953
-	github.com/crtsh/ctlint v0.0.0-20261022100311-0c20244d7dac
+	github.com/crtsh/ccadb_data v1.20261023.91613
+	github.com/crtsh/ctlint v0.0.0-20261023085856-f7a0e09ada35
 	github.com/crtsh/ctloglists v1.20261019.165700
 	github.com/goccy/go-json v0.11.2
 	github.com/google/certificate-transparency-go v1.4.0
@@ -40,7 +40,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
 	github.com/prometheus/common v0.72.1 // indirect
-	github.com/prometheus/procfs v0.22.0 // indirect
+	github.com/prometheus/procfs v0.23.0 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
