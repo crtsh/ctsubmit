@@ -5,13 +5,13 @@ go 1.27.3
 require (
 	filippo.io/sunlight v0.10.1
 	github.com/crtsh/ccadb_data v1.20261023.91613
-	github.com/crtsh/ctlint v0.0.0-20261023085856-f7a0e09ada35
+	github.com/crtsh/ctlint v0.0.0-20261026090943-5a9345830166
 	github.com/crtsh/ctloglists v1.20261019.165700
 	github.com/goccy/go-json v0.11.2
 	github.com/google/certificate-transparency-go v1.4.0
 	github.com/prometheus/client_golang v1.25.0
 	github.com/spf13/viper v1.21.0
-	github.com/valyala/fasthttp v1.76.0
+	github.com/valyala/fasthttp v1.77.0
 	github.com/valyala/quicktemplate v1.8.0
 	go.uber.org/automaxprocs v1.6.0
 	go.uber.org/zap v1.28.0
