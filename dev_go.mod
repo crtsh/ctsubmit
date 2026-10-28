@@ -3,8 +3,8 @@ module github.com/crtsh/ctsubmit
 go 1.27.3
 
 require (
-	filippo.io/sunlight v0.10.1
-	github.com/crtsh/ccadb_data v1.20261027.195642
+	filippo.io/sunlight v0.10.2
+	github.com/crtsh/ccadb_data v1.20261028.44715
 	github.com/crtsh/ctlint v0.0.0-20261027141744-c766457c8f7c
 	github.com/crtsh/ctloglists v1.20261019.165700
 	github.com/goccy/go-json v0.11.2
@@ -21,7 +21,7 @@ require (
 
 require (
 	filippo.io/edwards25519 v1.2.0 // indirect
-	filippo.io/torchwood v0.10.0 // indirect
+	filippo.io/torchwood v0.10.1-0.20261024135344-1c05157b1fd2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
