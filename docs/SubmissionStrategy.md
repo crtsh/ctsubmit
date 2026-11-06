@@ -37,7 +37,6 @@ The caller can set explicit values for `SCTs` (total SCT count) and `Operators` 
 |---|---|
 | Minimum SCTs | 2 (or 3 if certificate validity > 180 days) |
 | Minimum distinct operators | 2 |
-| `RequireAtLeastOneRFC6962SCT` | **true** (Apple CT policy) |
 | `PreferAtLeastOneStaticSCT` | **true** (Mozilla preference) |
 
 `SCTs` is always ≥ `Operators` and both are ≥ 1.
@@ -111,7 +110,7 @@ After each successful response, the `quorumState` is evaluated against all requi
 |---|---|---|
 | `len(responses) >= SCTs` | Hard | Must collect enough total SCTs |
 | `len(operators) >= Operators` | Hard | Must have enough distinct operators |
-| `RequireAtLeastOneRFC6962SCT` | Hard | At least one SCT must come from an RFC 6962 log |
+| `RequireAtLeastOneRFC6962SCT` | Hard | At least one SCT must come from an RFC 6962 log (only when explicitly requested) |
 | `PreferAtLeastOneStaticSCT` | Soft | Influences log selection order but does not block quorum |
 
 When quorum is met, the context is cancelled, all remaining in-flight and queued submissions are abandoned, and the successful responses are returned immediately.
@@ -170,7 +169,7 @@ The following configuration values control submission behavior:
 Handler
   │
   ├─ Parse certificate
-  ├─ determineSubmissionRequirements()  →  SCTs=3, Operators=2, RequireRFC6962=true
+  ├─ determineSubmissionRequirements()  →  SCTs=3, Operators=2, PreferStatic=true
   ├─ determineCompatibleLogs()          →  filtered LogList
   ├─ devizeSubmissionStrategy()         →  sorted []StrategyMember
   │

@@ -59,8 +59,7 @@ func (sr *SubmissionRequest) determineSubmissionRequirements(cert *x509.Certific
 
 	// When required, enforce TLS CT policy requirements for SCT/operator diversity.
 	if sr.PolicyCompliant && !isMarkCertificate {
-		sr.RequireAtLeastOneRFC6962SCT = true // The Chrome CT policy dropped this requirement, but the Apple CT policy still has it.
-		sr.PreferAtLeastOneStaticSCT = true   // Requested by Mozilla (see https://github.com/letsencrypt/boulder/pull/8676).
+		sr.PreferAtLeastOneStaticSCT = true // Requested by Mozilla (see https://github.com/letsencrypt/boulder/pull/8676).
 
 		if sr.Operators < 2 {
 			sr.Operators = 2
