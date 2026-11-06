@@ -45,7 +45,7 @@ The request body is a JSON object with the following properties:
 | `mimics` | Optional | `false` | If true, also generate SCTs from the [log mimics](https://googlechrome.github.io/CertificateTransparency/3p_libraries.html). |
 | `operators` | Optional | `1` | The minimum number of distinct log operators from which to obtain SCTs. Overridden if `policyCompliant` is true and the applicable CT policies require more. |
 | `scts` | Optional | `1` | The minimum number of SCTs to obtain. Overridden if `policyCompliant` is true and the applicable CT policies require more. |
-| `requireAtLeastOneRFC6962SCT` | Optional | `false` | If true, require at least one SCT from an RFC 6962 log. Automatically set to true when `policyCompliant` is true (Apple CT policy). |
+| `requireAtLeastOneRFC6962SCT` | Optional | `false` | If true, require at least one SCT from an RFC 6962 log. No longer set automatically by `policyCompliant` (Apple CT Policy v1.1 dropped this requirement). |
 | `preferAtLeastOneStaticSCT` | Optional | `false` | If true, prefer at least one SCT from a Static CT API log. Automatically set to true when `policyCompliant` is true (Mozilla preference). |
 | `verbose` | Optional | `false` | If true, include the submission strategy details in the response. |
 
@@ -168,14 +168,13 @@ When `policyCompliant` is `true` (the default), ctsubmit automatically enforces 
 |---|---|
 | Minimum SCTs | 2 (or 3 if certificate validity > 180 days) |
 | Minimum distinct operators | 2 |
-| Require at least one RFC 6962 SCT | Yes (Apple CT policy) |
 | Prefer at least one Static CT SCT | Yes (Mozilla preference) |
 
 For BIMI Mark Certificates, the Usable BIMI log list is used instead of the Usable TLS log list.
 
 ### Interaction with `testLogs`
 
-When both `policyCompliant` and `testLogs` are true, the quorum requirements above (SCT count, operator diversity, RFC 6962 requirement) are still enforced, but the following policy-compliance filters are relaxed:
+When both `policyCompliant` and `testLogs` are true, the quorum requirements above (SCT count and operator diversity), as well as any explicitly requested `requireAtLeastOneRFC6962SCT`, are still enforced, but the following policy-compliance filters are relaxed:
 
 - **Expired certificates are accepted** — the expiry check is skipped, allowing test submissions of expired certificates.
 - **Log state is not enforced** — logs do not need to be in the `Usable` state; `ReadOnly`, `Retired`, and other states are permitted.

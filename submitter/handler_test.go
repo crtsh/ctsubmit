@@ -55,8 +55,11 @@ func TestDetermineSubmissionRequirements(t *testing.T) {
 	if ll := sr.determineSubmissionRequirements(cert); ll == nil {
 		t.Fatal("expected a base log list")
 	}
-	if !sr.RequireAtLeastOneRFC6962SCT {
-		t.Error("expected the RFC6962 requirement to be set for a policy-compliant TLS cert")
+	if sr.RequireAtLeastOneRFC6962SCT {
+		t.Error("expected the RFC6962 requirement not to be set for a policy-compliant TLS cert")
+	}
+	if !sr.PreferAtLeastOneStaticSCT {
+		t.Error("expected the Static preference to be set for a policy-compliant TLS cert")
 	}
 	if sr.Operators < 2 {
 		t.Errorf("expected >= 2 operators, got %d", sr.Operators)
