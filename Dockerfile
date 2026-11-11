@@ -1,9 +1,9 @@
 # Install tini in a stage pinned to the target platform so apk fetches the
 # native binary for that arch (apk does not cross-compile).
-FROM --platform=$TARGETPLATFORM docker.io/library/golang:1.27.3-alpine3.24@sha256:f2c872bcee949b7be9c490efd02b48a8a2fbf947cdf533f1c58525ec9d8170fd AS tini
+FROM --platform=$TARGETPLATFORM docker.io/library/golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS tini
 RUN apk add --no-cache tini-static
 
-FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.27.3-alpine3.24@sha256:f2c872bcee949b7be9c490efd02b48a8a2fbf947cdf533f1c58525ec9d8170fd AS build
+FROM --platform=$BUILDPLATFORM docker.io/library/golang:1.27.4-alpine3.24@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS build
 ARG gomodfile=go.mod
 ARG TARGETOS
 ARG TARGETARCH
