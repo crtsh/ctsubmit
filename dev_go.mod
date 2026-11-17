@@ -3,9 +3,9 @@ module github.com/crtsh/ctsubmit
 go 1.27.4
 
 require (
-	filippo.io/sunlight v0.10.2
-	github.com/crtsh/ccadb_data v1.20261117.33125
-	github.com/crtsh/ctlint v0.0.0-20261113141409-65e674b847b5
+	filippo.io/sunlight v0.10.3
+	github.com/crtsh/ccadb_data v1.20261117.125408
+	github.com/crtsh/ctlint v0.0.0-20261117103154-f8f6bda9ffeb
 	github.com/crtsh/ctloglists v1.20261106.143200
 	github.com/goccy/go-json v0.12.0
 	github.com/google/certificate-transparency-go v1.4.0
@@ -26,7 +26,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
-	github.com/go-sql-driver/mysql v1.10.1 // indirect
+	github.com/go-sql-driver/mysql v1.10.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/google/trillian v1.8.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
