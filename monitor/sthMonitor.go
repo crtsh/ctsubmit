@@ -99,6 +99,9 @@ func (m *Monitor) STHMonitor(ctx context.Context) {
 }
 
 func (m *Monitor) FetchAllSTHs() {
+	m.sthMutex.RLock()
+	defer m.sthMutex.RUnlock()
+
 	for url, sd := range m.sthData {
 		if sd.IsRFC6962Log {
 			go m.fetchSTH(url, sd)
