@@ -139,10 +139,10 @@ func (m *Monitor) fetchSTH(logURL string, sd *STHData) {
 
 	sd.TreeSize = sthResponse.TreeSize
 
-	timestamp := time.Now()
-	sd.LastFetched = &timestamp
+	lastFetched := time.Now()
+	sd.LastFetched = &lastFetched
 
-	timestamp = sthTimestamp
+	timestamp := sthTimestamp
 	sd.Timestamp = &timestamp
 
 	m.lgr.Debug("Fetched STH", zap.String("url", logURL), zap.Uint64("tree_size", sthResponse.TreeSize), zap.Duration("age", time.Since(*sd.Timestamp)))
