@@ -99,6 +99,9 @@ func (m *Monitor) STHMonitor(ctx context.Context) {
 }
 
 func (m *Monitor) FetchAllSTHs() {
+	m.sthMutex.RLock()
+	defer m.sthMutex.RUnlock()
+
 	for url, sd := range m.sthData {
 		if sd.IsRFC6962Log {
 			go m.fetchSTH(url, sd)
@@ -127,25 +130,21 @@ func (m *Monitor) fetchSTH(logURL string, sd *STHData) {
 		return
 	}
 
-	sthTimestamp := time.UnixMilli(int64(sthResponse.Timestamp))
-
-	m.sthMutex.Lock()
-	defer m.sthMutex.Unlock()
-
 	if err = sd.SigVerifier.VerifySTHSignature(*sth); err != nil {
 		m.RecordBadResponse(sd.SubmissionURL, err)
 		return
 	}
 
+	lastFetched := time.Now()
+	timestamp := time.UnixMilli(int64(sthResponse.Timestamp))
+
+	m.sthMutex.Lock()
 	sd.TreeSize = sthResponse.TreeSize
-
-	timestamp := time.Now()
-	sd.LastFetched = &timestamp
-
-	timestamp = sthTimestamp
+	sd.LastFetched = &lastFetched
 	sd.Timestamp = &timestamp
+	m.sthMutex.Unlock()
 
-	m.lgr.Debug("Fetched STH", zap.String("url", logURL), zap.Uint64("tree_size", sthResponse.TreeSize), zap.Duration("age", time.Since(*sd.Timestamp)))
+	m.lgr.Debug("Fetched STH", zap.String("url", logURL), zap.Uint64("tree_size", sthResponse.TreeSize), zap.Duration("age", time.Since(timestamp)))
 }
 
 func (m *Monitor) fetchCheckpoint(submissionURL, monitoringURL string, sd *STHData) {
@@ -153,9 +152,6 @@ func (m *Monitor) fetchCheckpoint(submissionURL, monitoringURL string, sd *STHDa
 	if body == nil {
 		return
 	}
-
-	m.sthMutex.Lock()
-	defer m.sthMutex.Unlock()
 
 	n, err := note.Open(body, sd.NoteVerifiers)
 	if err != nil {
@@ -183,15 +179,17 @@ func (m *Monitor) fetchCheckpoint(submissionURL, monitoringURL string, sd *STHDa
 		return
 	}
 
-	sd.TreeSize = uint64(checkpoint.N)
-
+	treeSize := uint64(checkpoint.N)
 	lastFetched := time.Now()
-	sd.LastFetched = &lastFetched
-
 	timestamp := time.UnixMilli(timestampMillis)
-	sd.Timestamp = &timestamp
 
-	m.lgr.Debug("Fetched checkpoint", zap.String("url", monitoringURL), zap.Uint64("tree_size", sd.TreeSize), zap.Duration("age", time.Since(*sd.Timestamp)))
+	m.sthMutex.Lock()
+	sd.TreeSize = treeSize
+	sd.LastFetched = &lastFetched
+	sd.Timestamp = &timestamp
+	m.sthMutex.Unlock()
+
+	m.lgr.Debug("Fetched checkpoint", zap.String("url", monitoringURL), zap.Uint64("tree_size", treeSize), zap.Duration("age", time.Since(timestamp)))
 }
 
 func (m *Monitor) fetchResource(submissionURL, endpointURL string) []byte {
