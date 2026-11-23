@@ -18,7 +18,7 @@ RUN go run github.com/valyala/quicktemplate/qtc@v1.8.0 -dir=request/templates \
 -X github.com/crtsh/ctsubmit/config.BuildTimestamp=`date --utc +%Y-%m-%dT%H:%M:%SZ` \
 -X github.com/crtsh/ctsubmit/config.CtsubmitVersion=`git describe --tags --always`" /build/.
 
-FROM gcr.io/distroless/static:nonroot@sha256:aafe993665bf6200db38a02c11a9351e782a84b6a45e7f33b6695638c88e3931
+FROM gcr.io/distroless/static:nonroot@sha256:8ce6dd87e9823c5b48dcfb2c8604714ccb351ce59607327bcc4957448da279b5
 USER nonroot:nonroot
 COPY --from=build --chown=nonroot:nonroot /build/ctsubmit /app/ctsubmit
 COPY --from=tini --chown=nonroot:nonroot /sbin/tini-static /sbin/tini
