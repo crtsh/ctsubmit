@@ -5,7 +5,7 @@ go 1.27.4
 require (
 	filippo.io/sunlight v0.10.3
 	github.com/crtsh/ccadb_data v1.20261126.44611
-	github.com/crtsh/ctlint v0.0.0-20261127101313-d295623f317c
+	github.com/crtsh/ctlint v0.0.0-20261127113225-94c5ac59712d
 	github.com/crtsh/ctloglists v1.20261127.113000
 	github.com/goccy/go-json v0.12.0
 	github.com/google/certificate-transparency-go v1.4.0
@@ -26,7 +26,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
-	github.com/go-sql-driver/mysql v1.10.2 // indirect
+	github.com/go-sql-driver/mysql v1.11.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/google/trillian v1.8.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
